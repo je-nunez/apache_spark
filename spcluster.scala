@@ -4,7 +4,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
 
 
-object FindItem {
+object SpCluster {
   def main(cmdLineArgs: Array[String]) : Unit = {
 
     val sparkConf = new SparkConf().setMaster("local[2]").setAppName("Clustering")
