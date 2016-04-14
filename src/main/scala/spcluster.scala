@@ -1,4 +1,3 @@
-#!/usr/bin/env scala -deprecation -J-Xmx1g -J-XX:NewRatio=4 -Dorg.xerial.snappy.lib.name=libsnappyjava.jnilib -Dorg.xerial.snappy.tempdir=/tmp
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
@@ -13,8 +12,10 @@ object SpCluster {
     val sc = new SparkContext(sparkConf)
 
     println("Loading file")
-    val data = sc.textFile("data/scf2013.ascii")
-
+    val data = sc.textFile("/tmp/scf2013.ascii")
+    println("File loaded. Class " + data.getClass.getName +
+            "\nNumber of elements in the Resilient Distributed Dataset: " + data.count)
+    sc.stop()
   }
 
 }
