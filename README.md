@@ -1,4 +1,4 @@
 # sp
 
-Some tests with clustering in Apache Spark
+Some tests with clustering in Apache Spark in local mode
 
