@@ -4,7 +4,8 @@ import scala.util.matching._
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.{Vector => LinAlgVector, Vectors}
+import org.apache.spark.rdd.RDD
 
 
 object SpCluster {
@@ -15,8 +16,35 @@ object SpCluster {
 
     val sc = new SparkContext(sparkConf)
 
+    val parsedData = acquireRDD(sc, "/tmp/scf2013.ascii")
+
+    parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
+
+    // Cluster the data using KMeans
+    val numClusters = 5
+    val numIterations = 30
+    val clusters = KMeans.train(parsedData, numClusters, numIterations)
+    println("Clusters found. Class " + clusters.getClass.getName)
+
+    // print the centers of the clusters returned by the training of KMeans
+    for { i <- 0 until clusters.k } {
+      println(clusters.clusterCenters(i).toJson)
+    }
+
+    // Evaluate clustering by computing Within Set Sum of Squared Errors
+    val WSSSE = clusters.computeCost(parsedData)
+    println("Within Set Sum of Squared Errors = " + WSSSE)
+    // Save and load model
+    clusters.save(sc, "/tmp/mymodel.kmeans")
+    val sameModel = KMeansModel.load(sc, "/tmp/mymodel.kmeans")
+
+    sc.stop()
+  }
+
+  def acquireRDD(sc: SparkContext, fname: String): RDD[LinAlgVector] = {
+
     println("Loading file")
-    val data = sc.textFile("/tmp/scf2013.ascii")
+    val data = sc.textFile(fname)
     println("File loaded. Class " + data.getClass.getName)
     // println("\nNumber of elements in the Resilient Distributed Dataset: " + data.count)
 
@@ -44,27 +72,7 @@ object SpCluster {
     ).cache()
 
     println("Data parsed. Class " + parsedData.getClass.getName)
-    parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
-
-    // Cluster the data using KMeans
-    val numClusters = 5
-    val numIterations = 30
-    val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    println("Clusters found. Class " + clusters.getClass.getName)
-
-    // print the centers of the clusters returned by the training of KMeans
-    for { i <- 0 until clusters.k } {
-      println(clusters.clusterCenters(i).toJson)
-    }
-
-    // Evaluate clustering by computing Within Set Sum of Squared Errors
-    val WSSSE = clusters.computeCost(parsedData)
-    println("Within Set Sum of Squared Errors = " + WSSSE)
-    // Save and load model
-    clusters.save(sc, "/tmp/mymodel.kmeans")
-    val sameModel = KMeansModel.load(sc, "/tmp/mymodel.kmeans")
-
-    sc.stop()
+    parsedData
   }
 
 }
