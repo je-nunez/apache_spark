@@ -1,5 +1,6 @@
 // scalastyle:off
 
+import scala.util.Try
 import scala.util.matching._
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -20,11 +21,7 @@ object SpCluster {
 
     parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
 
-    // Cluster the data using KMeans
-    val numClusters = 5
-    val numIterations = 30
-    val clusters = KMeans.train(parsedData, numClusters, numIterations)
-    println("Clusters found. Class " + clusters.getClass.getName)
+    val clusters = trainKMeans(parsedData)
 
     // print the centers of the clusters returned by the training of KMeans
     for { i <- 0 until clusters.k } {
@@ -49,30 +46,25 @@ object SpCluster {
     // println("\nNumber of elements in the Resilient Distributed Dataset: " + data.count)
 
     // to parse this text file is difficult, with "numeric" tokens like 14.02098.0,
-    // 422.51295.0, and 0.01294.0
+    // 422.51295.0, and 0.01294.0, so the ETL has to handle exceptions because the
+    // raw data is not clean
     val parsedData = data.map(
-      // s if (s != "") => Vectors.dense(s.split("  *").map(_.toDouble))
-      s => if (s.matches("^.*[0-9]")) {
-             try {
-               val v = Vectors.dense(s.trim.split("  *").map(_.toDouble))
-               // println(v.toJson)
-               v
-             } catch {
-               case ex: NumberFormatException => {
-                 // println("Exception parsing line: " + s)
-                 val v = Vectors.dense(Array(0.0))
-                 v
-               }
-             }
-           } else {
-             // println("Non numeric line: " + s)
-             val v = Vectors.dense(Array(0.0))
-             v
-           }
+      s => Vectors.dense(s.split("  *").map(
+             token => Try(token.toDouble).getOrElse(0.00)
+           )
+      )
     ).cache()
 
     println("Data parsed. Class " + parsedData.getClass.getName)
     parsedData
   }
+
+  def trainKMeans(rdd: RDD[LinAlgVector], numClusters: Int = 5, numIterations: Int = 30):
+    KMeansModel = {
+
+      val clusters = KMeans.train(rdd, numClusters, numIterations)
+      // println("Clusters found. Class " + clusters.getClass.getName)
+      clusters
+    }
 
 }
