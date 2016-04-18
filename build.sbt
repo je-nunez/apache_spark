@@ -4,6 +4,12 @@ version := "0.0.1"
 
 scalaVersion := "2.10.6"
 
+fork in run := true
+
+javaOptions in run ++= Seq(
+    "-Xms4G", "-Xmx4G", "-XX:+UseG1GC"
+)
+
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.6.1" % "provided",
   "org.apache.spark" %% "spark-mllib" % "1.6.1",
