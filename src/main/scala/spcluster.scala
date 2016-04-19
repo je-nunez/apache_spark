@@ -86,7 +86,10 @@ object SpCluster {
   def validateRddForKMeans(rdd: RDD[LinAlgVector]): Boolean = {
 
     // Avoid an exception because the vectors inside the RDD have different size
-    // (as of the current version of Spark 1.6.1 as of April 18, 2016)
+    // (as of the current version of Spark 1.6.1 as of April 18, 2016). This issue
+    // appears because the ETL on the raw text file given, happens to generate vectors
+    // with different dimensions (this is an issue with the input raw text file given,
+    // as mentioned above in acquireRDD(...)).
     //
     // Exception ... org.apache.spark.SparkException: ...: java.lang.IllegalArgumentException: requirement failed
     //    at scala.Predef$.require(Predef.scala:221)
