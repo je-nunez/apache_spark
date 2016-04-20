@@ -10,10 +10,15 @@ javaOptions in run ++= Seq(
     "-Xms4G", "-Xmx4G", "-XX:+UseG1GC"
 )
 
+lazy val apachePOIVersion = "3.14"
+
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.6.1" % "provided",
   "org.apache.spark" %% "spark-mllib" % "1.6.1",
-  "org.apache.commons" % "commons-lang3" % "3.0"
+  "org.apache.commons" % "commons-lang3" % "3.0",
+  "org.apache.poi" % "poi" % apachePOIVersion,
+  "org.apache.poi" % "poi-ooxml" % apachePOIVersion,
+  "org.apache.poi" % "poi-ooxml-schemas" % apachePOIVersion
 )
 
 resolvers ++= Seq(
