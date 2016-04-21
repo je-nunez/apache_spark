@@ -1,12 +1,20 @@
 // scalastyle:off
 
+import scala.annotation.switch
 import scala.util.Try
 import scala.util.matching._
+
+import java.io.FileInputStream
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
 import org.apache.spark.mllib.linalg.{Vector => LinAlgVector, Vectors}
 import org.apache.spark.rdd.RDD
+
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.apache.poi.xssf.usermodel.XSSFRow
+import org.apache.poi.xssf.usermodel.XSSFCell
+import org.apache.poi.ss.usermodel.Cell
 
 
 object SpCluster {
@@ -16,6 +24,8 @@ object SpCluster {
     sparkConf.set("spark.ui.enabled", "false")
 
     val sc = new SparkContext(sparkConf)
+
+    // readExcelFile("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx", "Data")
 
     val parsedData = acquireRDD(sc, "/tmp/scf2013.ascii")
 
@@ -117,5 +127,34 @@ object SpCluster {
     // println("Clusters found. Class " + clusters.getClass.getName)
     clusters
   }
+
+
+  def readExcelFile(fname: String, sheetName: String): Unit = {
+    // TODO: to improve
+    val excelFileToRead = new FileInputStream(fname)
+    val xlsWbk = new XSSFWorkbook(excelFileToRead)
+
+    val xlsSheet = xlsWbk.getSheet(sheetName)
+
+    val rows = xlsSheet.rowIterator()
+
+    while (rows.hasNext())
+    {
+      val row = rows.next().asInstanceOf[XSSFRow]
+      val cells = row.cellIterator();
+      while (cells.hasNext())
+      {
+        val cell = cells.next().asInstanceOf[XSSFCell]
+        (cell.getCellType: @switch) match {
+          case Cell.CELL_TYPE_STRING => print(cell.getStringCellValue + "\t")
+          case Cell.CELL_TYPE_NUMERIC => print(cell.getNumericCellValue + "\t")
+          case Cell.CELL_TYPE_BOOLEAN => print(cell.getBooleanCellValue + "\t")
+          case _ => print("Unknown" + "\t")  // or exception
+        }
+      }
+      println()
+    }
+
+}
 
 }
