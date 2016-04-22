@@ -1,10 +1,11 @@
 // scalastyle:off
 
 import scala.annotation.switch
+import scala.collection.immutable.StringOps
 import scala.util.Try
 import scala.util.matching._
 
-import java.io.FileInputStream
+import java.io.{BufferedWriter, FileInputStream, FileWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
@@ -25,7 +26,14 @@ object SpCluster {
 
     val sc = new SparkContext(sparkConf)
 
-    // readExcelFile("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx", "Data")
+    /*
+     *
+    println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file")
+    excelSheetToCsv("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx", "Data",
+                    "/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.csv")
+    println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file")
+     *
+     */
 
     val parsedData = acquireRDD(sc, "/tmp/scf2013.ascii")
 
@@ -128,33 +136,75 @@ object SpCluster {
     clusters
   }
 
+  def convertDouble(d: Double): String = {
 
-  def readExcelFile(fname: String, sheetName: String): Unit = {
-    // TODO: to improve
-    val excelFileToRead = new FileInputStream(fname)
+    val directConversion = "%f".format(d)
+
+    if (directConversion.indexOf('.') >= 1) {
+      directConversion.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
+      // dropWhile seems slightly faster than tail-recursion to remove non-significant '0'
+      // generated when reading the floating-points in the source Excel cells
+    } else
+      directConversion
+  }
+
+
+  // A very simple converter of an Excel XLSX spreadsheet to a CSV text file. In particular, it
+  // fills empty cells with '0' (ie., NA in the source are '0' for CSV -see below). Empty rows
+  // in the spreadsheet are omitted (nothing is outputted in the CSV for them), for we want to
+  // convert at the end to a Spark RDD (a subsequent version will omit the intermediate CSV
+  // of the Excel spreadsheet)
+  // There are other, more complete Excel XLSX - to -> CSV converters as examples of Apache POI:
+  //    https://poi.apache.org/spreadsheet/examples.html
+
+  def excelSheetToCsv(xlsxFName: String, sheetName: String, csvFName: String): Unit = {
+
+    val excelFileToRead = new FileInputStream(xlsxFName)
     val xlsWbk = new XSSFWorkbook(excelFileToRead)
 
     val xlsSheet = xlsWbk.getSheet(sheetName)
 
-    val rows = xlsSheet.rowIterator()
+    val cvsOut = new BufferedWriter(new FileWriter(csvFName))
+
+    val rows = xlsSheet.rowIterator()    // get an iterator over the rows
 
     while (rows.hasNext())
     {
       val row = rows.next().asInstanceOf[XSSFRow]
-      val cells = row.cellIterator();
-      while (cells.hasNext())
+      val cells = row.cellIterator    // get an iterator over the cells in this row
+
+      val cvsLine = new StringBuilder(8 * 1024)
+      var previousCellCol: Int = -1
+
+      while (cells.hasNext)
       {
-        val cell = cells.next().asInstanceOf[XSSFCell]
+        val cell = cells.next.asInstanceOf[XSSFCell]
+        val currentCol = cell.getColumnIndex
+
+        def fillEmptyCells(): String = {
+          val fillValue = "0"        // string for filling empty cells (ie., NA)
+          val csvSeparator = ","
+          val strPreffix = if (previousCellCol > -1) csvSeparator else ""
+          val numColsJumped = currentCol - (previousCellCol + 1)
+
+          strPreffix + (( fillValue + csvSeparator ) * numColsJumped)
+        }
+
+        cvsLine.append(fillEmptyCells)
+        previousCellCol = currentCol
+
         (cell.getCellType: @switch) match {
-          case Cell.CELL_TYPE_STRING => print(cell.getStringCellValue + "\t")
-          case Cell.CELL_TYPE_NUMERIC => print(cell.getNumericCellValue + "\t")
-          case Cell.CELL_TYPE_BOOLEAN => print(cell.getBooleanCellValue + "\t")
-          case _ => print("Unknown" + "\t")  // or exception
+          case Cell.CELL_TYPE_STRING => cvsLine.append(cell.getStringCellValue)
+          case Cell.CELL_TYPE_NUMERIC => cvsLine.append(convertDouble(cell.getNumericCellValue))
+          case Cell.CELL_TYPE_BOOLEAN => cvsLine.append(cell.getBooleanCellValue.toString)
+          case _ => cvsLine.append("Unknown")     // or raise exception
         }
       }
-      println()
+      cvsOut.write(cvsLine.toString)
+      cvsOut.newLine()
     }
-
-}
+    cvsOut.close()
+    xlsWbk.close()
+  }
 
 }
