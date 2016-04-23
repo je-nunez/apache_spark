@@ -185,15 +185,18 @@ object SpCluster {
   // There are other, more complete Excel XLSX - to -> CSV converters as examples of Apache POI:
   //    https://poi.apache.org/spreadsheet/examples.html
 
-  def excelSheetToCsv(xlsxFName: String, sheetName: String, csvFName: String): Unit = {
+  def excelSheetToCsv(xlsxFName: String, sheetName: String, maxColumnIdx: Int, csvFName: String):
+      Unit = {
 
+    val fillValue = "0"        // string for filling empty cells (ie., to fill NA)
+    val csvSeparator = ","
     val cvsOut = new BufferedWriter(new FileWriter(csvFName))
+    val cvsLine = new StringBuilder(8 * 1024)
 
     iterExcelRows(xlsxFName, sheetName,
       (row: XSSFRow) => {
-
+        cvsLine.clear()
         val cells = row.cellIterator    // get an iterator over the cells in this row
-        val cvsLine = new StringBuilder(8 * 1024)
         var previousCellCol: Int = -1
 
         while (cells.hasNext)
@@ -202,8 +205,6 @@ object SpCluster {
           val currentCol = cell.getColumnIndex
 
           def fillEmptyCells(): String = {
-            val fillValue = "0"        // string for filling empty cells (ie., NA)
-            val csvSeparator = ","
             val strPreffix = if (previousCellCol > -1) csvSeparator else ""
             val numColsJumped = currentCol - (previousCellCol + 1)
 
@@ -220,6 +221,10 @@ object SpCluster {
             case _ => cvsLine.append("Unknown value at Row: " + (row.getRowNum + 1) +
                                      " Column: " + (currentCol + 1))     // or raise exception
           }
+        }
+        if (previousCellCol < maxColumnIdx) {
+          cvsLine.append(((fillValue + csvSeparator) * (maxColumnIdx - previousCellCol - 1)) +
+                         fillValue)
         }
         cvsOut.write(cvsLine.toString)
         cvsOut.newLine()
@@ -243,7 +248,7 @@ object SpCluster {
 
     println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file: " +
             csvFullFName)
-    excelSheetToCsv(xlsxFName, sheetName, csvFullFName)
+    excelSheetToCsv(xlsxFName, sheetName, maxColumn, csvFullFName)
     println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file: " +
             csvFullFName)
   }
