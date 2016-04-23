@@ -5,7 +5,7 @@ import scala.collection.immutable.StringOps
 import scala.util.Try
 import scala.util.matching._
 
-import java.io.{BufferedWriter, FileInputStream, FileWriter}
+import java.io.{File, FileInputStream, FileWriter, BufferedWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
@@ -27,19 +27,15 @@ object SpCluster {
     val sc = new SparkContext(sparkConf)
 
     /*
-     *
-    println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file")
-    excelSheetToCsv("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx", "Data",
-                    "/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.csv")
-    println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file")
-     *
+    convertExcelSpreadsh2RDD(sc, "/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx",
+                             "Data")
      */
 
     val parsedData = acquireRDD(sc, "/tmp/scf2013.ascii")
 
     parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
 
-    if (!validateRddForKMeans(parsedData)) {
+    if (!validateRDDForKMeans(parsedData)) {
       System.err.println("There are vectors inside the RDD which have different dimensions.\n" +
                          "All vectors must have the same dimensions.\nAborting.")
       sc.stop()
@@ -101,7 +97,7 @@ object SpCluster {
     (min, max)
   }
 
-  def validateRddForKMeans(rdd: RDD[LinAlgVector]): Boolean = {
+  def validateRDDForKMeans(rdd: RDD[LinAlgVector]): Boolean = {
 
     // Avoid an exception because the vectors inside the RDD have different size
     // (as of the current version of Spark 1.6.1 as of April 18, 2016). This issue
@@ -117,8 +113,8 @@ object SpCluster {
     //    at org.apache.spark.mllib.clustering.KMeans$$anonfun$findClosest$1.apply(KMeans.scala:563)
     //
     // The lines at MLUtils.scala:330 in the stack trace of the exception are:
-    //   329	    val n = v1.size
-    //   330	    require(v2.size == n)
+    //   329       val n = v1.size
+    //   330       require(v2.size == n)
     // so vectors need to be the same size (in this case, it happens that one of the vectors is
     // the calculated center of a KMeans cluster).
 
@@ -136,6 +132,35 @@ object SpCluster {
     clusters
   }
 
+
+  def iterExcelRows(xlsxFName: String, sheetName: String, rowFunction: XSSFRow => Unit): Unit = {
+    val excelFileToRead = new FileInputStream(xlsxFName)
+    val xlsWbk = new XSSFWorkbook(excelFileToRead)
+
+    val xlsSheet = xlsWbk.getSheet(sheetName)
+
+    val rows = xlsSheet.rowIterator()    // get an iterator over the rows
+
+    while (rows.hasNext()) {
+      rowFunction(rows.next().asInstanceOf[XSSFRow])
+    }
+    xlsWbk.close()
+
+  }
+
+  def findMaxColumnInExcelSpreadsh(xlsxFName: String, sheetName: String): Int = {
+
+    var maxCol: Int = -1
+
+    iterExcelRows(xlsxFName, sheetName,
+                 (row: XSSFRow) => {
+                   val maxColRow = row.getLastCellNum - 1
+                   if (maxColRow > maxCol) { maxCol = maxColRow }
+                 }
+    )
+    maxCol
+  }
+
   def convertDouble(d: Double): String = {
 
     val directConversion = "%f".format(d)
@@ -144,67 +169,83 @@ object SpCluster {
       directConversion.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
       // dropWhile seems slightly faster than tail-recursion to remove non-significant '0'
       // generated when reading the floating-points in the source Excel cells
-    } else
+    } else {
       directConversion
+    }
   }
-
 
   // A very simple converter of an Excel XLSX spreadsheet to a CSV text file. In particular, it
   // fills empty cells with '0' (ie., NA in the source are '0' for CSV -see below). Empty rows
   // in the spreadsheet are omitted (nothing is outputted in the CSV for them), for we want to
-  // convert at the end to a Spark RDD (a subsequent version will omit the intermediate CSV
-  // of the Excel spreadsheet)
+  // convert at the end to a Spark RDD and completely empty rows in a RDD don't have too much
+  // meaning -except to increase the number of rows in the RDD and those measures that depend on
+  // the number of rows, like mean, standard deviation, etc, where the number of rows appears in
+  // the denominator.
+  // (A subsequent version will omit the intermediate CSV of the Excel spreadsheet)
   // There are other, more complete Excel XLSX - to -> CSV converters as examples of Apache POI:
   //    https://poi.apache.org/spreadsheet/examples.html
 
   def excelSheetToCsv(xlsxFName: String, sheetName: String, csvFName: String): Unit = {
 
-    val excelFileToRead = new FileInputStream(xlsxFName)
-    val xlsWbk = new XSSFWorkbook(excelFileToRead)
-
-    val xlsSheet = xlsWbk.getSheet(sheetName)
-
     val cvsOut = new BufferedWriter(new FileWriter(csvFName))
 
-    val rows = xlsSheet.rowIterator()    // get an iterator over the rows
+    iterExcelRows(xlsxFName, sheetName,
+      (row: XSSFRow) => {
 
-    while (rows.hasNext())
-    {
-      val row = rows.next().asInstanceOf[XSSFRow]
-      val cells = row.cellIterator    // get an iterator over the cells in this row
+        val cells = row.cellIterator    // get an iterator over the cells in this row
+        val cvsLine = new StringBuilder(8 * 1024)
+        var previousCellCol: Int = -1
 
-      val cvsLine = new StringBuilder(8 * 1024)
-      var previousCellCol: Int = -1
+        while (cells.hasNext)
+        {
+          val cell = cells.next.asInstanceOf[XSSFCell]
+          val currentCol = cell.getColumnIndex
 
-      while (cells.hasNext)
-      {
-        val cell = cells.next.asInstanceOf[XSSFCell]
-        val currentCol = cell.getColumnIndex
+          def fillEmptyCells(): String = {
+            val fillValue = "0"        // string for filling empty cells (ie., NA)
+            val csvSeparator = ","
+            val strPreffix = if (previousCellCol > -1) csvSeparator else ""
+            val numColsJumped = currentCol - (previousCellCol + 1)
 
-        def fillEmptyCells(): String = {
-          val fillValue = "0"        // string for filling empty cells (ie., NA)
-          val csvSeparator = ","
-          val strPreffix = if (previousCellCol > -1) csvSeparator else ""
-          val numColsJumped = currentCol - (previousCellCol + 1)
+            strPreffix + (( fillValue + csvSeparator ) * numColsJumped)
+          }
 
-          strPreffix + (( fillValue + csvSeparator ) * numColsJumped)
+          cvsLine.append(fillEmptyCells)
+          previousCellCol = currentCol
+
+          (cell.getCellType: @switch) match {
+            case Cell.CELL_TYPE_STRING => cvsLine.append(cell.getStringCellValue)
+            case Cell.CELL_TYPE_NUMERIC => cvsLine.append(convertDouble(cell.getNumericCellValue))
+            case Cell.CELL_TYPE_BOOLEAN => cvsLine.append(cell.getBooleanCellValue.toString)
+            case _ => cvsLine.append("Unknown value at Row: " + (row.getRowNum + 1) +
+                                     " Column: " + (currentCol + 1))     // or raise exception
+          }
         }
-
-        cvsLine.append(fillEmptyCells)
-        previousCellCol = currentCol
-
-        (cell.getCellType: @switch) match {
-          case Cell.CELL_TYPE_STRING => cvsLine.append(cell.getStringCellValue)
-          case Cell.CELL_TYPE_NUMERIC => cvsLine.append(convertDouble(cell.getNumericCellValue))
-          case Cell.CELL_TYPE_BOOLEAN => cvsLine.append(cell.getBooleanCellValue.toString)
-          case _ => cvsLine.append("Unknown")     // or raise exception
-        }
+        cvsOut.write(cvsLine.toString)
+        cvsOut.newLine()
       }
-      cvsOut.write(cvsLine.toString)
-      cvsOut.newLine()
-    }
+    )
     cvsOut.close()
-    xlsWbk.close()
+  }
+
+  def convertExcelSpreadsh2RDD(sc: SparkContext, xlsxFName: String, sheetName: String):
+      Unit = {
+      // RDD[LinAlgVector] = {
+
+    // we ensure that all vectors inside the generated RDD from the Excel spreadsheet have the
+    // same dimension
+
+    println(System.currentTimeMillis + ": Finding max column index in the Excel XLSX")
+    val maxColumn = findMaxColumnInExcelSpreadsh(xlsxFName, sheetName)
+    println(System.currentTimeMillis + ": Found the max column in Excel spreadsheet: " + maxColumn)
+
+    val csvFullFName = File.createTempFile("excel_xlsx_", ".csv").getAbsolutePath
+
+    println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file: " +
+            csvFullFName)
+    excelSheetToCsv(xlsxFName, sheetName, csvFullFName)
+    println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file: " +
+            csvFullFName)
   }
 
 }
