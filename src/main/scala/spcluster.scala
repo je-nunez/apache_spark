@@ -2,22 +2,10 @@
 
 package mainapp
 
-import scala.annotation.switch
-import scala.collection.immutable.StringOps
-import scala.util.Try
-import scala.util.matching._
-
-import java.io.{File, FileInputStream, FileWriter, BufferedWriter}
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
-import org.apache.spark.mllib.linalg.{Vector => LinAlgVector, Vectors}
+import org.apache.spark.mllib.linalg.{Vector => LinAlgVector}
 import org.apache.spark.rdd.RDD
-
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import org.apache.poi.xssf.usermodel.XSSFRow
-import org.apache.poi.xssf.usermodel.XSSFCell
-import org.apache.poi.ss.usermodel.Cell
 
 import excel2rdd.Excel2RDD
 
