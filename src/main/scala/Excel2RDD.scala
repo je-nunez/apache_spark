@@ -23,7 +23,8 @@ import org.apache.poi.ss.usermodel.Cell
 // This is a very simple converter from an Excel spreadsheet to a Spark RDD, using an intermediate
 // CSV file. It is not a general converter, for it is more useful when the cells in the Excel
 // spreadsheet contains only numbers or are empty: with minor modifications it can be used for
-// spreadsheets with other schemas. More details in the comments below.
+// spreadsheets with other schemas. More details in the comments below, specifically the
+// Cell.CELL_TYPE_ conversions, and <type>, RDD[<type>], of the vectors in the new RDD.
 
 class Excel2RDD(
      val xlsxFName: String
@@ -31,13 +32,22 @@ class Excel2RDD(
 
   protected[this] var xlsWbk: XSSFWorkbook = null
 
-  // These values are used in closures inside Spark, so they should be "final" if they
-  // wanted to be referred inside Spark. (Another solution would be to have a local
-  // copy of them before calling the Spark methods, using their copies inside.) Otherwise
-  // you will get:
-  //   Exception ... org.apache.spark.SparkException: Task not serializable
+  // These values bwlo are used in closures inside Spark, so they should be "final" if they want
+  // to be referred inside Spark. (Another solution would be to have a local copy of them before
+  // calling the Spark methods, referring to their local copies inside.) Otherwise you will get:
+  //      Exception ... org.apache.spark.SparkException: Task not serializable
 
-  final val fillValue = "0"        // string for filling empty cells (ie., to fill NA)
+  /**
+   * Numeric string for filling empty cells (ie., to fill NA, or null).
+   *
+   * @note There is the issue with what specific numeric value to assign to NA in the input
+   * source for the newly generared LinAlgVector, because LinAlgVector only contains doubles:
+   * @see https://spark.apache.org/docs/latest/api/java/org/apache/spark/mllib/linalg/Vector.html
+   *)
+   */
+
+  final val fillNANullValue = "0"        // string for filling empty cells (ie., to fill NA, or null)
+
   final val csvSeparator = ","
 
   def open(): Unit = {
@@ -65,6 +75,10 @@ class Excel2RDD(
 
   def findMaxColumnInExcelSpreadsh(sheetName: String): Int = {
 
+    // This method is necessary if we want to enforce that the vectors inside the new RDD have all
+    // the same dimension, because Excel does not need that all rows have the same number of
+    // columns.
+
     var maxCol: Int = -1
 
     iterExcelRows(sheetName,
@@ -78,6 +92,9 @@ class Excel2RDD(
 
   protected[this] def convertDouble(d: Double): String = {
 
+    // This method is just a pretty printer of floats into the CSV, to avoid exponential notation
+    // or 5.350000 with extra non-significant '0's to the right
+
     val directConversion = "%f".format(d)
 
     if (directConversion.indexOf('.') >= 1) {
@@ -90,12 +107,11 @@ class Excel2RDD(
   }
 
   // A very simple converter of an Excel XLSX spreadsheet to a CSV text file. In particular, it
-  // fills empty cells with '0' (ie., NA in the source are '0' for CSV -see below). Empty rows
-  // in the spreadsheet are omitted (nothing is outputted in the CSV for them), for we want to
-  // convert at the end to a Spark RDD and completely empty rows in a RDD don't have too much
-  // meaning -except to increase the number of rows in the RDD and those measures that depend on
-  // the number of rows, like mean, standard deviation, etc, where the number of rows appears in
-  // the denominator.
+  // fills empty cells with fillNANullValue. Empty rows in the spreadsheet are omitted (nothing
+  // is outputted in the CSV for them), for we want to convert at the end to a Spark RDD and
+  // completely empty rows in a RDD don't have too much meaning -except to increase the number
+  // of rows in the RDD and those measures that depend on the number of rows, like mean, standard
+  // deviation, etc, where the number of rows appears in the denominator.
   // (A subsequent version will omit the intermediate CSV of the Excel spreadsheet)
   // There are other, more complete Excel XLSX - to -> CSV converters as examples of Apache POI:
   //    https://poi.apache.org/spreadsheet/examples.html
@@ -121,13 +137,15 @@ class Excel2RDD(
             val strPreffix = if (previousCellCol > -1) csvSeparator else ""
             val numColsJumped = currentCol - (previousCellCol + 1)
 
-            strPreffix + (( fillValue + csvSeparator ) * numColsJumped)
+            strPreffix + (( fillNANullValue + csvSeparator ) * numColsJumped)
           }
 
           cvsLine.append(fillEmptyCells)
           previousCellCol = currentCol
 
           (cell.getCellType: @switch) match {
+            // As a matter of fact, since our RDD happens to be RDD[LinAlgVector], we only expect
+            // the Excel cells to be Cell.CELL_TYPE_NUMERIC (other RDD[<types>] could be freer)
             case Cell.CELL_TYPE_STRING => cvsLine.append(cell.getStringCellValue)
             case Cell.CELL_TYPE_NUMERIC => cvsLine.append(convertDouble(cell.getNumericCellValue))
             case Cell.CELL_TYPE_BOOLEAN => cvsLine.append(cell.getBooleanCellValue.toString)
@@ -136,7 +154,7 @@ class Excel2RDD(
           }
         }
         if (previousCellCol < maxColumnIdx) {
-          cvsLine.append((csvSeparator + fillValue) * (maxColumnIdx - previousCellCol))
+          cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
         }
         cvsOut.write(cvsLine.toString)
         cvsOut.newLine()
@@ -154,7 +172,7 @@ class Excel2RDD(
 
     val parsedData = data.map(
       s => Vectors.dense(s.split(csvSeparator).map(
-             token => Try(token.toDouble).getOrElse(fillValue.toDouble)
+             token => Try(token.toDouble).getOrElse(fillNANullValue.toDouble)
            )
       )
     ).cache()

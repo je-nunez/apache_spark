@@ -26,6 +26,8 @@ object SpCluster {
     parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
 
     if (!validateRDDForKMeans(parsedData)) {
+      // This should not happen since the Excel2RDD converter tries to pad shorter rows in the
+      // Excel spreadsheet to be vectors with the same dimension in the new RDD.
       System.err.println("There are vectors inside the RDD which have different dimensions.\n" +
                          "All vectors must have the same dimensions.\nAborting.")
       sc.stop()
