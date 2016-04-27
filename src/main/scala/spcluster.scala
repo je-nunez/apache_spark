@@ -20,7 +20,7 @@ object SpCluster {
     val excelXlsx = new Excel2RDD("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx")
 
     excelXlsx.open()
-    val parsedData = excelXlsx.convertExcelSpreadsh2RDD("Data", sc)
+    val parsedData = excelXlsx.convertExcelSpreadsh2RDD("Data", true, true, sc)
     excelXlsx.close()
 
     parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
