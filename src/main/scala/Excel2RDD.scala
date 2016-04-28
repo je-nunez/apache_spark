@@ -32,7 +32,7 @@ class Excel2RDD(
 
   protected[this] var xlsWbk: XSSFWorkbook = null
 
-  // These values bwlo are used in closures inside Spark, so they should be "final" if they want
+  // These values below are used in closures inside Spark, so they should be "final" if they want
   // to be referred inside Spark. (Another solution would be to have a local copy of them before
   // calling the Spark methods, referring to their local copies inside.) Otherwise you will get:
   //      Exception ... org.apache.spark.SparkException: Task not serializable
@@ -49,6 +49,13 @@ class Excel2RDD(
   final val fillNANullValue = "0"        // string for filling empty cells (ie., to fill NA, or null)
 
   final val csvSeparator = ","
+
+  /**
+   * Header in the Excel spreadsheed.
+   */
+
+  protected[this] var header: Option[Array[String]] = None
+
 
   def open(): Unit = {
     val excelFileToRead = new FileInputStream(xlsxFName)
@@ -116,8 +123,8 @@ class Excel2RDD(
   // There are other, more complete Excel XLSX - to -> CSV converters as examples of Apache POI:
   //    https://poi.apache.org/spreadsheet/examples.html
 
-  protected[this] def excelSheetToCsv(sheetName: String, maxColumnIdx: Int, headerPresent: Boolean,
-      extractHeader: Boolean, csvFName: String): Unit = {
+  protected[this] def excelSheetToCsv(sheetName: String, maxColumnIdx: Int,
+      rowFilter: ExcelRowFilter, csvFName: String): Unit = {
 
     val cvsOut = new BufferedWriter(new FileWriter(csvFName))
     val cvsLine = new StringBuilder(8 * 1024)
@@ -157,12 +164,8 @@ class Excel2RDD(
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
         }
-        if (currentRow == 0 && headerPresent) {
-          if (extractHeader) {
-          }
-        }
-        cvsOut.write(cvsLine.toString)
-        cvsOut.newLine()
+        rowFilter(currentRow, cvsLine.toString, line => { cvsOut.write(line); cvsOut.newLine() },
+                  line => { header = Some(line.split(csvSeparator)) })
       }
     )
     cvsOut.close()
@@ -187,7 +190,7 @@ class Excel2RDD(
   }
 
 
-  def convertExcelSpreadsh2RDD(sheetName: String, headerPresent: Boolean, extractHeader: Boolean,
+  def convertExcelSpreadsh2RDD(sheetName: String, rowFilter: ExcelRowFilter,
       sc: SparkContext): RDD[LinAlgVector] = {
 
     // we ensure that all vectors inside the generated RDD from the Excel spreadsheet have the
@@ -204,7 +207,7 @@ class Excel2RDD(
 
       println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file: " +
               csvFullFName)
-      excelSheetToCsv(sheetName, maxColumn, headerPresent, extractHeader, csvFullFName)
+      excelSheetToCsv(sheetName, maxColumn, rowFilter, csvFullFName)
       println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file: " +
               csvFullFName)
 

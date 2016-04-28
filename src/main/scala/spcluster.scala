@@ -2,15 +2,30 @@
 
 package mainapp
 
+
+import java.io.File
+import org.apache.commons.io.FileUtils
+
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
 import org.apache.spark.mllib.linalg.{Vector => LinAlgVector}
 import org.apache.spark.rdd.RDD
 
+
 import excel2rdd.Excel2RDD
+import excel2rdd.ExcelHeaderExtract
+
 
 object SpCluster {
+
+  val saveRDDAsTxtToDir = "/tmp/filtered.rdd.copy.dir"
+
+  val saveKMeansModelToDir = "/tmp/save.model.kmeans.dir"
+
   def main(cmdLineArgs: Array[String]) : Unit = {
+
+    prepareTempDirs()
 
     val sparkConf = new SparkConf().setMaster("local[2]").setAppName("Clustering")
     sparkConf.set("spark.ui.enabled", "false")
@@ -20,10 +35,10 @@ object SpCluster {
     val excelXlsx = new Excel2RDD("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx")
 
     excelXlsx.open()
-    val parsedData = excelXlsx.convertExcelSpreadsh2RDD("Data", true, true, sc)
+    val parsedData = excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, sc)
     excelXlsx.close()
 
-    parsedData.saveAsTextFile("/tmp/filtered_copy_directory")
+    parsedData.saveAsTextFile(saveRDDAsTxtToDir)
 
     if (!validateRDDForKMeans(parsedData)) {
       // This should not happen since the Excel2RDD converter tries to pad shorter rows in the
@@ -45,10 +60,15 @@ object SpCluster {
     val WSSSE = clusters.computeCost(parsedData)
     println("Within Set Sum of Squared Errors = " + WSSSE)
     // Save and load model
-    clusters.save(sc, "/tmp/mymodel.kmeans")
-    val sameModel = KMeansModel.load(sc, "/tmp/mymodel.kmeans")
+    clusters.save(sc, saveKMeansModelToDir)
+    val sameModel = KMeansModel.load(sc, saveKMeansModelToDir)
 
     sc.stop()
+  }
+
+  def prepareTempDirs(): Unit = {
+    FileUtils.deleteQuietly(new File(saveRDDAsTxtToDir))
+    FileUtils.deleteQuietly(new File(saveKMeansModelToDir))
   }
 
   def minMaxVectorInRdd(rdd: RDD[LinAlgVector]): (Int, Int) = {
