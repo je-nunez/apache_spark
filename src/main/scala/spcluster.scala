@@ -49,16 +49,10 @@ object SpCluster {
       System.exit(1)
     }
 
-    val clusters = trainKMeans(parsedData)
+    val clusters = trainKMeans(parsedData, numClusters = 10)
 
-    // print the centers of the clusters returned by the training of KMeans
-    for { i <- 0 until clusters.k } {
-      println(clusters.clusterCenters(i).toJson)
-    }
+    reportKMeanClusters(clusters, parsedData, excelXlsx)
 
-    // Evaluate clustering by computing Within Set Sum of Squared Errors
-    val WSSSE = clusters.computeCost(parsedData)
-    println("Within Set Sum of Squared Errors = " + WSSSE)
     // Save and load model
     clusters.save(sc, saveKMeansModelToDir)
     val sameModel = KMeansModel.load(sc, saveKMeansModelToDir)
@@ -75,7 +69,7 @@ object SpCluster {
     var min = Int.MaxValue
     var max = Int.MinValue
 
-    rdd.collect().foreach(v => {
+    rdd.collect.foreach(v => {
         val v_sz = v.size
         if (v_sz < min) {
           min = v_sz
@@ -121,6 +115,37 @@ object SpCluster {
     val clusters = KMeans.train(rdd, numClusters, numIterations)
     // println("Clusters found. Class " + clusters.getClass.getName)
     clusters
+  }
+
+  /**
+   * Print the centers of the clusters returned by the training of KMeans, and the
+   * Within Set Sum of Squared Errors from the samples
+   */
+
+  def reportKMeanClusters(kMeans: KMeansModel, rdd: RDD[LinAlgVector],
+      originalData: Excel2RDD): Unit = {
+
+    for { i <- 0 until kMeans.k } {
+      val currKMeanCenter = kMeans.clusterCenters(i)
+      println(s"Reporting center of KMeans cluster $i")
+      var nonZeroColumns = 0
+      // println(currKMeanCenter.toJson)
+
+      for { j <- 0 until currKMeanCenter.size } {
+        val value = currKMeanCenter(j)
+        if ( value != 0.00 ) {
+          val colName = originalData.getHeader(j)
+          println(f"Column $j%4d $colName%-15s value: $value%.8f")
+          nonZeroColumns += 1
+        }
+      }
+      println(s"Number for non-zero columns for center of KMeans cluster $i: $nonZeroColumns")
+
+    }
+
+    // Evaluate clustering by computing Within Set Sum of Squared Errors
+    val WSSSE = kMeans.computeCost(rdd)
+    println("Within Set Sum of Squared Errors = " + WSSSE)
   }
 
 }

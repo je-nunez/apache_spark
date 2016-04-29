@@ -68,6 +68,13 @@ class Excel2RDD(
     }
   }
 
+  def getHeader(i: Int): String = {
+    header match {
+      case Some(arr) => if (i >= 0 && i < arr.length) arr(i) else ""
+      case None => ""
+    }
+  }
+
   def iterExcelRows(sheetName: String, rowFunction: XSSFRow => Unit): Unit = {
     val xlsSheet = xlsWbk.getSheet(sheetName)
 
