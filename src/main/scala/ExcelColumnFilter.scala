@@ -19,11 +19,11 @@ abstract class ExcelColumnFilter {
 
 }
 
-case object ExcelDropColumns extends ExcelColumnFilter {
+class ExcelDropColumns (val colsToDrop: Array[Int])
+   extends ExcelColumnFilter {
 
   override def filterCol(colNumber: Int, colValue: String): String = {
-    // TO DO
-    "Not Implemented yet"
+    if (colsToDrop contains colNumber) "" else colValue
   }
 
 }

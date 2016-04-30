@@ -15,6 +15,7 @@ import org.apache.spark.rdd.RDD
 
 import excel2rdd.Excel2RDD
 import excel2rdd.ExcelHeaderExtract
+import excel2rdd.ExcelColumnFilter
 
 
 object SpCluster {
