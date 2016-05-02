@@ -19,6 +19,16 @@ abstract class ExcelColumnFilter {
 
 }
 
+
+case object ExcelColumnIdentity extends ExcelColumnFilter {
+
+  // Identity function, return original value as it is
+
+  override def filterCol(colNumber: Int, colValue: String): String = colValue
+
+}
+
+
 class ExcelDropColumns (val colsToDrop: Array[Int])
    extends ExcelColumnFilter {
 
