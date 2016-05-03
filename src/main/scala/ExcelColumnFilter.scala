@@ -12,9 +12,9 @@ package excel2rdd
 
 abstract class ExcelColumnFilter {
 
-  def filterCol(colNumber: Int, colValue: String): String
+  def filterCol(colNumber: Int, colValue: String): Option[String]
 
-  def apply(colNumber: Int, colValue: String): String =
+  def apply(colNumber: Int, colValue: String): Option[String] =
     filterCol(colNumber, colValue)
 
 }
@@ -24,16 +24,16 @@ case object ExcelColumnIdentity extends ExcelColumnFilter {
 
   // Identity function, return original value as it is
 
-  override def filterCol(colNumber: Int, colValue: String): String = colValue
+  override def filterCol(colNumber: Int, colValue: String): Option[String] = Some(colValue)
 
 }
 
 
 class ExcelDropColumns (val colsToDrop: Array[Int])
-   extends ExcelColumnFilter {
+    extends ExcelColumnFilter {
 
-  override def filterCol(colNumber: Int, colValue: String): String = {
-    if (colsToDrop contains colNumber) "" else colValue
+  override def filterCol(colNumber: Int, colValue: String): Option[String] = {
+    if (colsToDrop contains colNumber) None else Some(colValue)
   }
 
 }

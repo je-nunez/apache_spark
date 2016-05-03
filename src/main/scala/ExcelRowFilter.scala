@@ -15,7 +15,6 @@ package excel2rdd
 //      http://weka.sourceforge.net/doc.dev/weka/filters/Filter.html (subclasses to get an idea)
 // This project doesn't need this amplitude.
 
-// case.
 
 abstract class ExcelRowFilter {
 

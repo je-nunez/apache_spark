@@ -15,7 +15,7 @@ import org.apache.spark.rdd.RDD
 
 import excel2rdd.Excel2RDD
 import excel2rdd.ExcelHeaderExtract
-import excel2rdd.{ExcelColumnFilter, ExcelColumnIdentity}
+import excel2rdd.{ExcelColumnFilter, ExcelDropColumns}
 
 
 object SpCluster {
@@ -35,9 +35,10 @@ object SpCluster {
 
     val excelXlsx = new Excel2RDD("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx")
 
+    val excelDropColumns = new ExcelDropColumns(Array(0))
     excelXlsx.open()
     val parsedData =
-      excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, ExcelColumnIdentity, sc)
+      excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns, sc)
     excelXlsx.close()
 
     parsedData.saveAsTextFile(saveRDDAsTxtToDir)
@@ -51,7 +52,7 @@ object SpCluster {
       System.exit(1)
     }
 
-    val clusters = trainKMeans(parsedData, numClusters = 10)
+    val clusters = trainKMeans(parsedData, numClusters = 10, numIterations = 80)
 
     reportKMeanClusters(clusters, parsedData, excelXlsx)
 

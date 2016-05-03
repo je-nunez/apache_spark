@@ -167,7 +167,7 @@ class Excel2RDD(
             case _ => valueStr = "Unknown value at Row: " + (currentRow + 1) +
                                  " Column: " + (currentCol + 1)     // or raise exception
           }
-          cvsLine.append(colFilter(currentCol, valueStr))
+          colFilter(currentCol, valueStr) match { case Some(s) => cvsLine.append(s); case _ => }
         }
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
@@ -228,3 +228,4 @@ class Excel2RDD(
   }
 
 }
+
