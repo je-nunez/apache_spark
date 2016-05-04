@@ -147,11 +147,11 @@ class Excel2RDD(
         {
           val cell = cells.next.asInstanceOf[XSSFCell]
           val currentCol = cell.getColumnIndex
+          var numContinuousCellsSkipped = 0
 
           def fillEmptyCells(): String = {
             val strPreffix = if (previousCellCol > -1) csvSeparator else ""
-            val numColsJumped = currentCol - (previousCellCol + 1)
-
+            val numColsJumped = currentCol - (previousCellCol + 1) - numContinuousCellsSkipped
             strPreffix + (( fillNANullValue + csvSeparator ) * numColsJumped)
           }
 
@@ -167,7 +167,10 @@ class Excel2RDD(
             case _ => valueStr = "Unknown value at Row: " + (currentRow + 1) +
                                  " Column: " + (currentCol + 1)     // or raise exception
           }
-          colFilter(currentCol, valueStr) match { case Some(s) => cvsLine.append(s); case _ => }
+          colFilter(currentCol, valueStr) match {
+            case Some(s) => cvsLine.append(s); numContinuousCellsSkipped = 0
+            case _ => numContinuousCellsSkipped += 1      // another cell continously skipped
+          }
         }
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
