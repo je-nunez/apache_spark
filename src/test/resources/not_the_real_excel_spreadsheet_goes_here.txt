@@ -1,0 +1,5 @@
+not the real excel spreadsheet with the raw data goes here, because it is too
+big and it is available in the Internet, just a small (numeric) Excel
+spreadsheet to test loading it into a Spark RDD[mllib.linalg.Vector]. (With
+other types of Excel spreadsheets, other RDD[<type>] can be tested.)
+
