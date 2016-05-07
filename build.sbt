@@ -5,10 +5,13 @@ version := "0.0.1"
 scalaVersion := "2.10.6"
 
 fork in run := true
+fork in Test := true
 
 javaOptions in run ++= Seq(
     "-Xms4G", "-Xmx4G", "-XX:+UseG1GC"
 )
+
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-verbosity", "1")
 
 lazy val apachePOIVersion = "3.14"
 
@@ -18,7 +21,8 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % "3.0",
   "org.apache.poi" % "poi" % apachePOIVersion,
   "org.apache.poi" % "poi-ooxml" % apachePOIVersion,
-  "org.apache.poi" % "poi-ooxml-schemas" % apachePOIVersion
+  "org.apache.poi" % "poi-ooxml-schemas" % apachePOIVersion,
+  "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
 )
 
 resolvers ++= Seq(
