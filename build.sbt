@@ -11,7 +11,7 @@ javaOptions in run ++= Seq(
     "-Xms4G", "-Xmx4G", "-XX:+UseG1GC"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-verbosity", "1")
+testOptions in Test += Tests.Argument("-oD")
 
 lazy val apachePOIVersion = "3.14"
 
@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "org.apache.poi" % "poi" % apachePOIVersion,
   "org.apache.poi" % "poi-ooxml" % apachePOIVersion,
   "org.apache.poi" % "poi-ooxml-schemas" % apachePOIVersion,
-  "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 )
 
 resolvers ++= Seq(
