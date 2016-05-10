@@ -7,7 +7,7 @@ import scala.collection.immutable.StringOps
 import scala.util.Try
 import scala.util.matching._
 
-import java.io.{File, FileInputStream, FileWriter, BufferedWriter}
+import java.io.{File, InputStream, FileInputStream, FileWriter, BufferedWriter}
 
 import org.apache.commons.io.FileUtils
 
@@ -27,8 +27,17 @@ import org.apache.poi.ss.usermodel.Cell
 // Cell.CELL_TYPE_ conversions, and <type>, RDD[<type>], of the vectors in the new RDD.
 
 class Excel2RDD(
-     val xlsxFName: String
+
+     // we use the Java class InputStream instead of scala.io.Source, BufferedSource, etc, because
+     // Apache POI works at the end with Java classes to read the Microsoft Office documents
+
+     val xlsxInput: InputStream
   ) {
+
+  def this(xlsxFName: String) {
+    // an optional constructor receiving the (directory and) file name of the Excel XLSX
+    this(new FileInputStream(xlsxFName))
+  }
 
   protected[this] var xlsWbk: XSSFWorkbook = null
 
@@ -56,10 +65,15 @@ class Excel2RDD(
 
   protected[this] var header: Option[Array[String]] = None
 
+  /**
+   * The underlying, temporary csvFullFName that was generated from this Excel spreadsheet
+   */
+
+  protected[this] var csvFullFName: String = ""
+
 
   def open(): Unit = {
-    val excelFileToRead = new FileInputStream(xlsxFName)
-    xlsWbk = new XSSFWorkbook(excelFileToRead)
+    xlsWbk = new XSSFWorkbook(xlsxInput)
   }
 
   def close(): Unit = {
@@ -74,6 +88,9 @@ class Excel2RDD(
       case None => ""
     }
   }
+
+  def getCsvFileName: String = csvFullFName
+
 
   def iterExcelRows(sheetName: String, rowFunction: XSSFRow => Unit): Unit = {
     val xlsSheet = xlsWbk.getSheet(sheetName)
@@ -120,6 +137,27 @@ class Excel2RDD(
     }
   }
 
+  def fillEmptyCells(previousVisitedCol: Int, currVisitCol: Int, colFilter: ExcelColumnFilter):
+      String = {
+
+    val strPreffix = if (previousVisitedCol > -1) csvSeparator else ""
+    if (previousVisitedCol == currVisitCol - 1) {
+      strPreffix    // this if-condition is the trivial case
+    } else {
+      // previousVisitedCol < currVisitCol - 1, so there were some cells missing in Excel spreadsheet
+      // We can either fill them with fillNANullValue, or discard any cell if it was supposed to be
+      // filtered-out explicitly by the colFilter
+      var filling = new StringBuilder(8 * 1024)
+      for { jumpedOverCol <- previousVisitedCol+1 until currVisitCol } {
+        colFilter(jumpedOverCol, ( fillNANullValue + csvSeparator )) match {
+          case Some(nonFilteredValue) => filling.append(nonFilteredValue)
+          case _ =>
+        }
+      }
+      strPreffix + filling.toString
+    }
+  }
+
   // A very simple converter of an Excel XLSX spreadsheet to a CSV text file. In particular, it
   // fills empty cells with fillNANullValue. Empty rows in the spreadsheet are omitted (nothing
   // is outputted in the CSV for them), for we want to convert at the end to a Spark RDD and
@@ -147,16 +185,7 @@ class Excel2RDD(
         {
           val cell = cells.next.asInstanceOf[XSSFCell]
           val currentCol = cell.getColumnIndex
-          var numLastContinuousCellsFiltered = 0
 
-          def fillEmptyCells(): String = {
-            val strPreffix = if (previousCellCol > -1) csvSeparator else ""
-            val numColsJumped = currentCol - (previousCellCol + 1) - numLastContinuousCellsFiltered
-            strPreffix + (( fillNANullValue + csvSeparator ) * numColsJumped)
-          }
-
-          cvsLine.append(fillEmptyCells)
-          previousCellCol = currentCol
           var valueStr = ""
           (cell.getCellType: @switch) match {
             // As a matter of fact, since our RDD happens to be RDD[LinAlgVector], we only expect
@@ -168,9 +197,13 @@ class Excel2RDD(
                                  " Column: " + (currentCol + 1)     // or raise exception
           }
           colFilter(currentCol, valueStr) match {
-            case Some(s) => cvsLine.append(s); numLastContinuousCellsFiltered = 0
-            case _ => numLastContinuousCellsFiltered += 1      // another cell continously skipped
+            case Some(s) => {
+              cvsLine.append(fillEmptyCells(previousCellCol, currentCol, colFilter))
+              cvsLine.append(s)
+            }
+            case _ =>
           }
+          previousCellCol = currentCol
         }
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
@@ -196,7 +229,7 @@ class Excel2RDD(
       )
     ).cache()
 
-    println("Data parsed. Class " + parsedData.getClass.getName)
+    // println("Data parsed. Class " + parsedData.getClass.getName)
     parsedData
   }
 
@@ -207,22 +240,23 @@ class Excel2RDD(
     // we ensure that all vectors inside the generated RDD from the Excel spreadsheet have the
     // same dimension
 
-    println(System.currentTimeMillis + ": Finding max column index in the Excel XLSX")
+    // println(System.currentTimeMillis + ": Finding max column index in the Excel XLSX spreadsh")
     val maxColumn = findMaxColumnInExcelSpreadsh(sheetName)
-    println(System.currentTimeMillis + ": Found the max column in Excel spreadsheet: " + maxColumn)
+    // println(System.currentTimeMillis + ": Found the max column: " + maxColumn)
 
     var newRDD: RDD[LinAlgVector] = null
     val csvFile = File.createTempFile("excel_xlsx_", ".csv")
     try {
-      val csvFullFName = csvFile.getAbsolutePath
+      val tempCsvFName = csvFile.getAbsolutePath
 
       println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file: " +
-              csvFullFName)
-      excelSheetToCsv(sheetName, maxColumn, rowFilter, colFilter, csvFullFName)
+              tempCsvFName)
+      excelSheetToCsv(sheetName, maxColumn, rowFilter, colFilter, tempCsvFName)
       println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file: " +
-              csvFullFName)
+              tempCsvFName)
 
-      newRDD = convertCsv2RDD(csvFullFName, sc)
+      newRDD = convertCsv2RDD(tempCsvFName, sc)
+      csvFullFName = csvFile.getAbsolutePath
     } finally {
       // FileUtils.deleteQuietly(csvFile)
     }
