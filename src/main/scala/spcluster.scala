@@ -3,9 +3,10 @@
 package mainapp
 
 
-import java.io.File
-import org.apache.commons.io.FileUtils
+import java.io.{InputStream, File}
+import java.net.URL
 
+import org.apache.commons.io.FileUtils
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.clustering._
@@ -33,7 +34,7 @@ object SpCluster {
 
     val sc = new SparkContext(sparkConf)
 
-    val excelXlsx = new Excel2RDD("/tmp/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx")
+    val excelXlsx = new Excel2RDD(openInputDataSource)
 
     val excelDropColumns = new ExcelDropColumns(Array(0))
     excelXlsx.open()
@@ -66,6 +67,22 @@ object SpCluster {
   def prepareTempDirs(): Unit = {
     FileUtils.deleteQuietly(new File(saveRDDAsTxtToDir))
     FileUtils.deleteQuietly(new File(saveKMeansModelToDir))
+  }
+
+  def openInputDataSource(): InputStream = {
+
+    // It takes the input Excel spreadsheet on which to run the Apache Spark's K-means clustering
+    // from the Center for Microeconomic Data at the Federal Reserve Bank of New York, at:
+    //      https://www.newyorkfed.org/microeconomics/data.html
+    // This input Excel XLSX has several spreadsheets inside, of which we use only the "Data" one
+    // TODO: use caching to download this input Excel XLSX only once, although it is only 747 KB.
+
+    val microEconomics =
+      "https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/FRBNY-SCE-Housing-Module-Public-Microdata-Complete.xlsx"
+    val url = new URL(microEconomics)
+    val conn = url.openConnection()
+
+    conn.getInputStream()
   }
 
   def minMaxVectorInRdd(rdd: RDD[LinAlgVector]): (Int, Int) = {
