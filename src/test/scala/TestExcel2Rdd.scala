@@ -22,31 +22,35 @@ import excel2rdd.{ExcelColumnFilter, ExcelDropColumns, ExcelColumnIdentity}
 
 object TagExcelObviousErrors extends Tag("private.tags.ExcelObviousErrors")
 
-object TagExcelNoFilter extends Tag("private.tags.ExcelNoFilter")
-object TagExcelRemoveHeader extends Tag("private.tags.RemoveHeaderOnly")
-object TagExcelRemove2ndCol extends Tag("private.tags.Remove2ndColOnly")
-object TagExcelRemoveThreeCols extends Tag("private.tags.RemoveThreeCols")
+object TagExcelFilteringFunc extends Tag("private.tags.Excel.Filter")
 
-object TagExcelFilteringFunc extends Tag("private.tags.ExcelFilteringFunc")
+object TagExcelDoFilterHeader extends Tag("private.tags.Excel.Filter.Header.DoFilter")
+object TagExcelNoFilterHeader extends Tag("private.tags.Excel.Filter.Header.NoFilter")
+
+object TagExcelNoFilterColumns extends Tag("private.tags.Excel.Filter.Columns.NoFilter")
+object TagExcelDoFilter2ndColm extends Tag("private.tags.Excel.Filter.Columns.Filter2d")
+object TagExcelDoFilter2t4Cols extends Tag("private.tags.Excel.Filter.Columns.Filter2t4")
 
 
-class Excel2Csv extends FunSuite with ShouldMatchers {
+class TestExcel2Rdd extends FunSuite with ShouldMatchers {
 
   // This is the sample Excel XLSX
 
   val sampleExcelXlsx = "/sample_excel.xlsx"
 
-  // The right spreadsheet in our Excel file
+  // The right spreadsheet in our sample Excel file
 
   val rightSpreadshTab = "test"
 
   // The directory under which to save the RDD as a CSV
 
-  val saveRddToCsvDir = "/tmp/tempDirectory"      // TODO: do it in a portable manner
+  val saveRddToCsvDir = "/tmp/tempDirectory"      // TODO: do it in a portable manner, and for
+                              // parallel test execution (disabled in the "build.sbt" SBT file,
+                              // http://www.scala-sbt.org/0.13/docs/Parallel-Execution.html
 
-  // the filename with real CSV file saved from the RDD
+  // the filename with the real CSV file saved from the RDD
 
-  val realCsvFromRdd = "/tmp/tempDirectory/part-00000"   // using rdd.repartition(1)...
+  val realCsvFromRdd = saveRddToCsvDir + "/part-00000"   // using rdd.repartition(1)...: see below
 
   lazy val sparkContext = {
 
@@ -87,7 +91,7 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
     val excelXlsx = new Excel2RDD(nonExistingXlsx.getAbsolutePath)
     val thrownExc = evaluating { excelXlsx.open() } should produce [POIXMLException]
 
-    // This message in the exception may change in the future
+    // This message given in the Apache POI exception may change in the future
     val expectedMsg =
       "org.apache.poi.openxml4j.exceptions.InvalidFormatException: Package should contain a content type part [M1.13]"
     thrownExc.getMessage() should be (expectedMsg)
@@ -99,7 +103,7 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
     val excelXlsx = new Excel2RDD(sampleExcel)
 
     excelXlsx.open()
-    val wrongSpreadshTab = "Non-existing-Spreadsheet-Tab"
+    val wrongSpreadshTab = rightSpreadshTab + "_a_surpluous_wrong_suffix"    // make it wrong
     intercept[NullPointerException] {
       val parsedData = excelXlsx.convertExcelSpreadsh2RDD(wrongSpreadshTab, ExcelHeaderExtract,
                                                           ExcelColumnIdentity, sparkContext)
@@ -108,7 +112,7 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
   }
 
   test("Converting an Excel XLSX to CSV, zero filtering of data",
-       TagExcelNoFilter, TagExcelFilteringFunc) {
+       TagExcelNoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
     val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
     val excelXlsx = new Excel2RDD(sampleExcel)
 
@@ -122,7 +126,7 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
   }
 
   test("Converting an Excel XLSX to CSV, filtering out header row only",
-       TagExcelRemoveHeader, TagExcelFilteringFunc) {
+       TagExcelDoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
     val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
     val excelXlsx = new Excel2RDD(sampleExcel)
 
@@ -135,8 +139,8 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
     res should equal (true)
   }
 
-  test("Converting an Excel XLSX to CSV, filtering out second column only", TagExcelRemove2ndCol,
-       TagExcelFilteringFunc) {
+  test("Converting an Excel XLSX to CSV, filtering out second column only",
+       TagExcelNoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
     val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
     val excelXlsx = new Excel2RDD(sampleExcel)
 
@@ -151,18 +155,48 @@ class Excel2Csv extends FunSuite with ShouldMatchers {
   }
 
   test("Converting an Excel XLSX to CSV, filtering out second to fourth columns only",
-       TagExcelRemoveThreeCols, TagExcelFilteringFunc) {
-    pending
+       TagExcelNoFilterHeader, TagExcelDoFilter2t4Cols, TagExcelFilteringFunc) {
+    val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
+    val excelXlsx = new Excel2RDD(sampleExcel)
+
+    excelXlsx.open()
+    val excelDropColumns = new ExcelDropColumns(Array(1, 2, 3))
+    val parsedData = excelXlsx.convertExcelSpreadsh2RDD(rightSpreadshTab, ExcelNoHeader,
+                                                        excelDropColumns, sparkContext)
+    info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
+    saveRdd2Csv(parsedData, saveRddToCsvDir)
+    val res = compareCsvData(realCsvFromRdd, "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv")
+    res should equal (true)
   }
 
   test("Converting an Excel XLSX to CSV, filtering out header row and second column",
-       TagExcelFilteringFunc) {
-    pending
+       TagExcelDoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
+    val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
+    val excelXlsx = new Excel2RDD(sampleExcel)
+
+    excelXlsx.open()
+    val excelDropColumns = new ExcelDropColumns(Array(1))
+    val parsedData = excelXlsx.convertExcelSpreadsh2RDD(rightSpreadshTab, ExcelHeaderDiscard,
+                                                        excelDropColumns, sparkContext)
+    info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
+    saveRdd2Csv(parsedData, saveRddToCsvDir)
+    val res = compareCsvData(realCsvFromRdd, "/parsed_sample_excel_no_header_no_2nd_col.csv")
+    res should equal (true)
   }
 
   test("Converting an Excel XLSX to CSV, filtering out header row and second to fourth columns",
-       TagExcelFilteringFunc) {
-    pending
+       TagExcelDoFilterHeader, TagExcelDoFilter2t4Cols, TagExcelFilteringFunc) {
+    val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
+    val excelXlsx = new Excel2RDD(sampleExcel)
+
+    excelXlsx.open()
+    val excelDropColumns = new ExcelDropColumns(Array(1, 2, 3))
+    val parsedData = excelXlsx.convertExcelSpreadsh2RDD(rightSpreadshTab, ExcelHeaderDiscard,
+                                                        excelDropColumns, sparkContext)
+    info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
+    saveRdd2Csv(parsedData, saveRddToCsvDir)
+    val res = compareCsvData(realCsvFromRdd, "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv")
+    res should equal (true)
   }
 }
 

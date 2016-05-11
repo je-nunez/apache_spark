@@ -13,6 +13,10 @@ javaOptions in run ++= Seq(
 
 testOptions in Test += Tests.Argument("-oD")
 
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+
+
+
 lazy val apachePOIVersion = "3.14"
 
 libraryDependencies ++= Seq(
