@@ -1,0 +1,18 @@
+# it can be used under Docker
+sudo: false
+
+before_install: umask 0022
+
+language: scala
+scala:
+  - 2.10.4
+branches:
+  only:
+    - master
+jdk:
+  - oraclejdk7
+  - oraclejdk8
+
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION compile test:compile
+  - sbt ++$TRAVIS_SCALA_VERSION test
