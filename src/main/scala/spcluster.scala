@@ -53,13 +53,17 @@ object SpCluster {
       System.exit(1)
     }
 
-    val clusters = trainKMeans(parsedData, numClusters = 10, numIterations = 80)
-
-    reportKMeanClusters(clusters, parsedData, excelXlsx)
-
-    // Save and load model
-    clusters.save(sc, saveKMeansModelToDir)
-    val sameModel = KMeansModel.load(sc, saveKMeansModelToDir)
+    exploreClusters(parsedData) match {
+      case Some(bestClusterModel) => {
+        reportKMeanClusters(bestClusterModel, parsedData, excelXlsx)
+        // Save and load model
+        bestClusterModel.save(sc, saveKMeansModelToDir)
+        val sameModel = KMeansModel.load(sc, saveKMeansModelToDir)
+      }
+      case None => {
+        println("No K-Means clustering model could be found with the set-cardinality requested.")
+      }
+    }
 
     sc.stop()
   }
@@ -138,6 +142,49 @@ object SpCluster {
   }
 
   /**
+   * Explore which model of clusters, for a model of ordinality "N", best fits into the input RDD,
+   * among several possible cardinalities N. The model which best fits is that one which has the
+   * least Within Set Sum of Squared Errors. (Of course, this leaves the question open whether
+   * such a clustering set is nevertheless stable, ie., for infinitesimal variations on the input
+   * data, another model is better.)
+   */
+
+  def exploreClusters(rdd: RDD[LinAlgVector], minNumClusters: Int = 2, maxNumClusters: Int = 100,
+                      numIterations: Int = 80): Option[KMeansModel] = {
+
+    var bestClusterModel: KMeansModel = null
+    var bestModelWSSSE: Double = Double.MaxValue
+
+    for { numClusters <- minNumClusters to maxNumClusters } {
+      val currClusterModel = trainKMeans(rdd, numClusters, numIterations)
+
+      val currWSSSE = currClusterModel.computeCost(rdd)
+      if (currWSSSE < bestModelWSSSE) {   // should it be '<=' instead, as to prefer clustering
+                                          // models with higher cardinality, so they could
+                                          // possibly be more stable? Or instead of comparing
+                                          //        currWSSSE < bestModelWSSSE
+                                          // is it better to compare:
+                                          //        (currWSSSE / currClusterModel.k) <
+                                          //             (bestModelWSSSE / bestClusterModel.k)
+                                          // or some comparison function:
+                                          //      f(currClusterModel) < f(bestClusterModel)
+                                          // TODO: to receive a parameter in exploreClusters():
+                                          //    comparisonFunction:
+                                          //           KMeansModel, KMeansModel => Double
+                                          // for this comparison between two sets of clusters
+                                          // (with returns less than 0.0 for better, greater
+                                          //  than 0.0 for worse). And of course, what are the
+                                          //  consequences of these different auto-learned
+                                          //  clusters when applied to a test set.
+        bestClusterModel = currClusterModel
+        bestModelWSSSE = currWSSSE
+      }
+    }
+
+    Option(bestClusterModel)
+  }
+
+  /**
    * Print the centers of the clusters returned by the training of KMeans, and the
    * Within Set Sum of Squared Errors from the samples
    */
@@ -166,6 +213,7 @@ object SpCluster {
     // Evaluate clustering by computing Within Set Sum of Squared Errors
     val WSSSE = kMeans.computeCost(rdd)
     println("Within Set Sum of Squared Errors = " + WSSSE)
+    println("Cardinality of the K-Means clustering found: " +  kMeans.k)
   }
 
 }
