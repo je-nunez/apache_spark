@@ -53,7 +53,20 @@ object SpCluster {
       System.exit(1)
     }
 
-    exploreClusters(parsedData) match {
+    exploreClusters(parsedData,
+      (rdd: RDD[LinAlgVector], model1: KMeansModel, model2: KMeansModel) => {
+         if (model1 == null) {
+           Double.MaxValue     // choose the second model
+         } else if (model2 == null) {
+           Double.MinValue     // choose the first
+         } else {
+           val wssse1 = model1.computeCost(rdd)
+           val wssse2 = model2.computeCost(rdd)
+           ( wssse1 / model1.k) - ( wssse2 / model2.k )
+           // wssse1 - wssse2
+         }
+      }
+    ) match {
       case Some(bestClusterModel) => {
         reportKMeanClusters(bestClusterModel, parsedData, excelXlsx)
         // Save and load model
@@ -149,35 +162,21 @@ object SpCluster {
    * data, another model is better.)
    */
 
-  def exploreClusters(rdd: RDD[LinAlgVector], minNumClusters: Int = 2, maxNumClusters: Int = 100,
-                      numIterations: Int = 80): Option[KMeansModel] = {
+  def exploreClusters(rdd: RDD[LinAlgVector],
+                      chooseBestModel: (RDD[LinAlgVector], KMeansModel, KMeansModel) => Double,
+                      minNumClusters: Int = 2, maxNumClusters: Int = 100, numIterations: Int = 80):
+      Option[KMeansModel] = {
 
     var bestClusterModel: KMeansModel = null
-    var bestModelWSSSE: Double = Double.MaxValue
 
     for { numClusters <- minNumClusters to maxNumClusters } {
       val currClusterModel = trainKMeans(rdd, numClusters, numIterations)
 
-      val currWSSSE = currClusterModel.computeCost(rdd)
-      if (currWSSSE < bestModelWSSSE) {   // should it be '<=' instead, as to prefer clustering
-                                          // models with higher cardinality, so they could
-                                          // possibly be more stable? Or instead of comparing
-                                          //        currWSSSE < bestModelWSSSE
-                                          // is it better to compare:
-                                          //        (currWSSSE / currClusterModel.k) <
-                                          //             (bestModelWSSSE / bestClusterModel.k)
-                                          // or some comparison function:
-                                          //      f(currClusterModel) < f(bestClusterModel)
-                                          // TODO: to receive a parameter in exploreClusters():
-                                          //    comparisonFunction:
-                                          //           KMeansModel, KMeansModel => Double
-                                          // for this comparison between two sets of clusters
-                                          // (with returns less than 0.0 for better, greater
-                                          //  than 0.0 for worse). And of course, what are the
-                                          //  consequences of these different auto-learned
-                                          //  clusters when applied to a test set.
+      val better = chooseBestModel(rdd, bestClusterModel, currClusterModel)
+           // a speed-up is to save the previous calculation for "bestClusterModel", if it doesn't
+           // need to be recalculated in the next iteration
+      if (better > 0.001) {
         bestClusterModel = currClusterModel
-        bestModelWSSSE = currWSSSE
       }
     }
 
