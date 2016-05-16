@@ -120,7 +120,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
   def stdTestExcel2RddWithFilters(rowFilter: ExcelRowFilter, columnFilter: ExcelColumnFilter,
                                   expectedRddAsCsvResult: String,
-                                  checkState: Excel2RDD => Boolean): Boolean = {
+                                  checkState: Excel2RDD => Boolean = Function.const(true)):
+      Boolean = {
     val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
     val excelXlsx = new Excel2RDD(sampleExcel)
 
@@ -145,8 +146,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelNoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, ExcelColumnIdentity,
-                                          "/parsed_sample_excel_with_header_all_cols.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_with_header_all_cols.csv")
 
     res should equal (true)
   }
@@ -155,8 +155,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelDoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, ExcelColumnIdentity,
-                                          "/parsed_sample_excel_no_header_all_cols.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_no_header_all_cols.csv")
 
     res should equal (true)
   }
@@ -165,8 +164,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelNoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(1)),
-                                          "/parsed_sample_excel_with_header_no_2nd_col.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_with_header_no_2nd_col.csv")
 
     res should equal (true)
   }
@@ -175,8 +173,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelNoFilterHeader, TagExcelDoFilter2t4Cols, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(1, 2, 3)),
-                                          "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv")
 
     res should equal (true)
   }
@@ -185,8 +182,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelDoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, new ExcelDropColumns(Array(1)),
-                                          "/parsed_sample_excel_no_header_no_2nd_col.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_no_header_no_2nd_col.csv")
 
     res should equal (true)
   }
@@ -196,8 +192,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard,
                                           new ExcelDropColumns(Array(1, 2, 3)),
-                                          "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv",
-                                          (e: Excel2RDD) => true)
+                                          "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv")
 
     res should equal (true)
   }
