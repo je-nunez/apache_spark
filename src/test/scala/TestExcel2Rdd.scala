@@ -42,6 +42,11 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
   val rightSpreadshTab = "test"
 
+  // The right values of the header row in our sample Excel file
+
+  val rightSpreadshHeader = Array("headerCol1", "headerCol2", "headerCol3", "headerCol4",
+                                  "headerCol5", "headerCol6", "headerCol7")
+
   // The directory under which to save the RDD as a CSV
 
   val saveRddToCsvDir = "/tmp/tempDirectory"      // TODO: do it in a portable manner, and for
@@ -68,11 +73,12 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     FileUtils.deleteQuietly(new File(outputBaseDir))
 
     rdd.repartition(1).saveAsTextFile(outputBaseDir)
+    info("Done saving the parsed Spark RDD back to a single CSV file.")
   }
 
   def compareCsvData(realCsvResults: String, expectedCsvResults: String): Boolean = {
 
-    info(s"Comparing contents of '$realCsvResults' with '$expectedCsvResults'.")
+    info(s"Comparing contents of '$realCsvResults' with the expected '$expectedCsvResults'.")
 
     val realLines = Source.fromFile(realCsvResults).getLines
     val expectedLines =
@@ -113,7 +119,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
 
   def stdTestExcel2RddWithFilters(rowFilter: ExcelRowFilter, columnFilter: ExcelColumnFilter,
-                                  expectedRddAsCsvResult: String): Boolean = {
+                                  expectedRddAsCsvResult: String,
+                                  checkState: Excel2RDD => Boolean): Boolean = {
     val sampleExcel = getClass.getResourceAsStream(sampleExcelXlsx)
     val excelXlsx = new Excel2RDD(sampleExcel)
 
@@ -124,14 +131,22 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
     saveRdd2Csv(parsedData, saveRddToCsvDir)
 
-    compareCsvData(realCsvFromRdd, expectedRddAsCsvResult)
+    if (compareCsvData(realCsvFromRdd, expectedRddAsCsvResult)) {
+      // the comparison of the contents from the realCsvFromRdd is the same as the expected
+      // contents in expectedRddAsCsvResult. Check the state of the object itself
+      checkState(excelXlsx)
+    } else {
+      // the CSV contents from the actual Spark RDD and the expected contents were different
+      false
+    }
   }
 
   test("Converting an Excel XLSX to CSV, zero filtering of data",
        TagExcelNoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, ExcelColumnIdentity,
-                                          "/parsed_sample_excel_with_header_all_cols.csv")
+                                          "/parsed_sample_excel_with_header_all_cols.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
@@ -140,7 +155,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelDoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, ExcelColumnIdentity,
-                                          "/parsed_sample_excel_no_header_all_cols.csv")
+                                          "/parsed_sample_excel_no_header_all_cols.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
@@ -149,7 +165,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelNoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(1)),
-                                          "/parsed_sample_excel_with_header_no_2nd_col.csv")
+                                          "/parsed_sample_excel_with_header_no_2nd_col.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
@@ -158,7 +175,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelNoFilterHeader, TagExcelDoFilter2t4Cols, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(1, 2, 3)),
-                                          "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv")
+                                          "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
@@ -167,7 +185,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
        TagExcelDoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, new ExcelDropColumns(Array(1)),
-                                          "/parsed_sample_excel_no_header_no_2nd_col.csv")
+                                          "/parsed_sample_excel_no_header_no_2nd_col.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
@@ -177,9 +196,26 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
     val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard,
                                           new ExcelDropColumns(Array(1, 2, 3)),
-                                          "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv")
+                                          "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv",
+                                          (e: Excel2RDD) => true)
 
     res should equal (true)
   }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row only and saving it internally",
+       TagExcelDoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
+
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, ExcelColumnIdentity,
+                                          "/parsed_sample_excel_no_header_all_cols.csv",
+                                          (e: Excel2RDD) => {
+                                             rightSpreadshHeader.zipWithIndex forall {
+                                               case (expectedHdrVal, hrdIdx) =>
+                                                 e.getHeader(hrdIdx) == expectedHdrVal
+                                             }
+                                          })
+
+    res should equal (true)
+  }
+
 }
 

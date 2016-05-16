@@ -246,6 +246,7 @@ class Excel2RDD(
 
     var newRDD: RDD[LinAlgVector] = null
     val csvFile = File.createTempFile("excel_xlsx_", ".csv")
+    csvFile.deleteOnExit()
     try {
       val tempCsvFName = csvFile.getAbsolutePath
 
@@ -259,6 +260,10 @@ class Excel2RDD(
       csvFullFName = csvFile.getAbsolutePath
     } finally {
       // FileUtils.deleteQuietly(csvFile)
+      //   TODO: FIX:
+      //      can't delete it immediately in this thread, because Spark is still reading it in
+      //      another thread. That's why the csvFile.deleteOnExit() above, to delete it on exit.
+      //      This is an issue though inside Unix-style daemons or Windows system services.
     }
 
     newRDD
