@@ -3,6 +3,7 @@ import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import org.scalatest.Tag
 
+import scala.reflect.ClassTag
 import scala.io.Source
 
 import java.io.{BufferedReader, File, FileNotFoundException}
@@ -21,6 +22,7 @@ import excel2rdd.{ExcelColumnFilter, ExcelDropColumns, ExcelColumnIdentity}
 
 
 object TagExcelObviousErrors extends Tag("private.tags.ExcelObviousErrors")
+object TagExcelUtilityFunctions extends Tag("private.tags.ExcelUtilityFunctions")
 
 object TagExcelFilteringFunc extends Tag("private.tags.Excel.Filter")
 
@@ -197,6 +199,10 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     res should equal (true)
   }
 
+  def removeIndices[T:ClassTag](indicesToDrop: Array[Int], originalArray: Array[T]): Array[T] = {
+    originalArray.indices.diff(indicesToDrop).map( { case (idx) => originalArray(idx) } ).toArray
+  }
+
   test("Converting an Excel XLSX to CSV, filtering out header row only and saving it internally",
        TagExcelDoFilterHeader, TagExcelNoFilterColumns, TagExcelFilteringFunc) {
 
@@ -208,6 +214,81 @@ class TestExcel2Rdd extends FunSuite with Matchers {
                                                  e.getHeader(hrdIdx) == expectedHdrVal
                                              }
                                           })
+
+    res should equal (true)
+  }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row and second column" +
+       ", and saving header internally",
+       TagExcelDoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
+
+    val dropCols = Array(1)
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, new ExcelDropColumns(dropCols),
+                                          "/parsed_sample_excel_no_header_no_2nd_col.csv",
+                                          (e: Excel2RDD) => {
+                                             removeIndices(dropCols, rightSpreadshHeader).
+                                               zipWithIndex forall {
+                                                 case (expectedHdrVal, hrdIdx) =>
+                                                   e.getHeader(hrdIdx) == expectedHdrVal
+                                               }
+                                          })
+
+    res should equal (true)
+  }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row and second to fourth columns" +
+       ", and saving header internally",
+       TagExcelDoFilterHeader, TagExcelDoFilter2t4Cols, TagExcelFilteringFunc) {
+
+    val dropCols = Array(1, 2, 3)
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, new ExcelDropColumns(dropCols),
+                                          "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv",
+                                          (e: Excel2RDD) => {
+                                             removeIndices(dropCols, rightSpreadshHeader).
+                                               zipWithIndex forall {
+                                                 case (expectedHdrVal, hrdIdx) =>
+                                                   e.getHeader(hrdIdx) == expectedHdrVal
+                                               }
+                                          })
+
+    res should equal (true)
+  }
+
+  val rangeToTest: Seq[Int] = Seq.range(0, 50)
+
+  test("Check the removeIndices() function itself: removing even indices, leaving odd ones",
+       TagExcelUtilityFunctions) {
+    val allIndices = rangeToTest.toArray
+    val evenIndices = rangeToTest.filter(_ % 2 == 0).toArray
+    val oddIndices = rangeToTest.filterNot(_ % 2 == 0).toArray
+
+    val remainingIndices = removeIndices(evenIndices, allIndices)
+    val res = remainingIndices.sameElements(oddIndices)
+
+    res should equal (true)
+  }
+
+  test("Check the removeIndices() function itself: removing odd indices, leaving even ones",
+       TagExcelUtilityFunctions) {
+    val allIndices = rangeToTest.toArray
+    val evenIndices = rangeToTest.filter(_ % 2 == 0).toArray
+    val oddIndices = rangeToTest.filterNot(_ % 2 == 0).toArray
+
+    val remainingIndices = removeIndices(oddIndices, allIndices)
+    val res = remainingIndices.sameElements(evenIndices)
+
+    res should equal (true)
+  }
+
+  test("Check the removeIndices() function itself: removing indices '(i - 1) % 3 == 0', " +
+       "leaving all the other indices", TagExcelUtilityFunctions) {
+    val allIndices = rangeToTest.toArray
+    val selector = (i: Int) => { (i - 1) % 3 == 0 }
+    val indicesToDrop = rangeToTest.filter(selector).toArray
+    val expectedRemaining = rangeToTest.filterNot(selector).toArray
+
+    val remainingIndices = removeIndices(indicesToDrop, allIndices)
+    val res = remainingIndices.sameElements(expectedRemaining)
 
     res should equal (true)
   }
