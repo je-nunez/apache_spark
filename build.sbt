@@ -11,17 +11,22 @@ javaOptions in run ++= Seq(
     "-Xms4G", "-Xmx4G", "-XX:+UseG1GC"
 )
 
+ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 85
+
+ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false
+
+// we don't test the mainapp, just the Excel2RDD package
+
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "mainapp.*"
+
+ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := {
+    if(scalaBinaryVersion.value == "2.11") true
+    else false
+}
+
 testOptions in Test += Tests.Argument("-oD")
 
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
-
-
-resolvers += Classpaths.sbtPluginReleases
-
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.3.5")
-
-addSbtPlugin("org.scoverage" % "sbt-coveralls" % "1.1.0")
-
 
 lazy val apachePOIVersion = "3.14"
 
