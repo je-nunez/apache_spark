@@ -132,15 +132,29 @@ class TestExcel2Rdd extends FunSuite with Matchers {
                                                         sparkContext)
     excelXlsx.close()
     info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
-    saveRdd2Csv(parsedData, saveRddToCsvDir)
 
-    if (compareCsvData(realCsvFromRdd, expectedRddAsCsvResult)) {
-      // the comparison of the contents from the realCsvFromRdd is the same as the expected
-      // contents in expectedRddAsCsvResult. Check the state of the object itself
-      checkState(excelXlsx)
-    } else {
-      // the CSV contents from the actual Spark RDD and the expected contents were different
+    val intermediateCsvFName = excelXlsx.getCsvFileName
+    val intermCsvFile = new java.io.File(intermediateCsvFName)
+    val intermCsvExists = intermCsvFile.exists
+    val intermCsvSize = intermCsvFile.length
+    info("Checked intermediate CSV file obtained from the Excel spreadsheet.")
+
+    // in the general case, the size of the intermediate csv file doesn't need to be > 0 if the
+    // input Excel spreadsheet exists but is empty
+    if (!intermCsvExists || intermCsvSize == 0) {
       false
+    } else {
+
+      saveRdd2Csv(parsedData, saveRddToCsvDir)
+
+      if (compareCsvData(realCsvFromRdd, expectedRddAsCsvResult)) {
+        // the comparison of the contents from the realCsvFromRdd is the same as the expected
+        // contents in expectedRddAsCsvResult. Check the state of the object itself
+        checkState(excelXlsx)
+      } else {
+        // the CSV contents from the actual Spark RDD and the expected contents were different
+        false
+      }
     }
   }
 
@@ -199,8 +213,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     res should equal (true)
   }
 
-  def removeIndices[T:ClassTag](indicesToDrop: Array[Int], originalArray: Array[T]): Array[T] = {
-    originalArray.indices.diff(indicesToDrop).map( { case (idx) => originalArray(idx) } ).toArray
+  def removeIndices[T:ClassTag](indicesToDrop: Seq[Int], originalSeq: Seq[T]): Seq[T] = {
+    originalSeq.indices.diff(indicesToDrop).map( { case (idx) => originalSeq(idx) } )
   }
 
   test("Converting an Excel XLSX to CSV, filtering out header row only and saving it internally",
