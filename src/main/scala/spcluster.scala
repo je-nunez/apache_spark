@@ -25,6 +25,8 @@ object SpCluster {
 
   val saveKMeansModelToDir = "/tmp/save.model.kmeans.dir"
 
+  val saveKMeansModelToPMML = "/tmp/FRBNY-SCE-Housing.pmml"
+
   def main(cmdLineArgs: Array[String]) : Unit = {
 
     prepareTempDirs()
@@ -53,7 +55,7 @@ object SpCluster {
       System.exit(1)
     }
 
-    exploreClusters(parsedData,
+    exploreClustersKMeans(parsedData,
       (rdd: RDD[LinAlgVector], model1: KMeansModel, model2: KMeansModel) => {
          if (model1 == null) {
            Double.MaxValue     // choose the second model
@@ -69,7 +71,11 @@ object SpCluster {
     ) match {
       case Some(bestClusterModel) => {
         reportKMeanClusters(bestClusterModel, parsedData, excelXlsx)
-        // Save and load model
+        // Save and load model (export also in PMML/XML format. You will need
+        // org.jpmml.model.JAXBUtil.unmarshalPMML(pmml) and
+        // org.jpmml.evaluator.ModelEvaluatorFactory(), etc, to re-read it. R also has a package
+        // for it.
+        bestClusterModel.toPMML(saveKMeansModelToPMML)
         bestClusterModel.save(sc, saveKMeansModelToDir)
         val sameModel = KMeansModel.load(sc, saveKMeansModelToDir)
       }
@@ -100,6 +106,7 @@ object SpCluster {
     val conn = url.openConnection()
 
     conn.getInputStream()
+
   }
 
   def minMaxVectorInRdd(rdd: RDD[LinAlgVector]): (Int, Int) = {
@@ -155,17 +162,17 @@ object SpCluster {
   }
 
   /**
-   * Explore which model of clusters, for a model of ordinality "N", best fits into the input RDD,
-   * among several possible cardinalities N. The model which best fits is that one which has the
-   * least Within Set Sum of Squared Errors. (Of course, this leaves the question open whether
-   * such a clustering set is nevertheless stable, ie., for infinitesimal variations on the input
-   * data, another model is better.)
+   * Explore which model of K-Means clusters, for a model of ordinality "N", best fits into the
+   * input RDD, among several possible cardinalities N. The model which best fits is that one
+   * which has the least Within Set Sum of Squared Errors. (Of course, this leaves the question
+   * open whether such a clustering set is nevertheless stable, ie., for infinitesimal variations
+   * on the input data, another model is better.)
    */
 
-  def exploreClusters(rdd: RDD[LinAlgVector],
+  def exploreClustersKMeans(rdd: RDD[LinAlgVector],
                       chooseBestModel: (RDD[LinAlgVector], KMeansModel, KMeansModel) => Double,
-                      minNumClusters: Int = 2, maxNumClusters: Int = 100, numIterations: Int = 80):
-      Option[KMeansModel] = {
+                      minNumClusters: Int = 2, maxNumClusters: Int = 100, numIterations: Int = 80
+      ): Option[KMeansModel] = {
 
     var bestClusterModel: KMeansModel = null
 
