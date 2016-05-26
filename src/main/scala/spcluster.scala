@@ -17,6 +17,7 @@ import org.apache.spark.rdd.RDD
 import excel2rdd.Excel2RDD
 import excel2rdd.ExcelHeaderExtract
 import excel2rdd.{ExcelColumnFilter, ExcelDropColumns}
+import excel2rdd.ExcelRowIdentity
 
 
 object SpCluster {
@@ -41,7 +42,8 @@ object SpCluster {
     val excelDropColumns = new ExcelDropColumns(Array(0))
     excelXlsx.open()
     val parsedData =
-      excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns, sc)
+      excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns,
+                                         ExcelRowIdentity, sc)
     excelXlsx.close()
 
     parsedData.saveAsTextFile(saveRDDAsTxtToDir)

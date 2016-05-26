@@ -169,7 +169,8 @@ class Excel2RDD(
   //    https://poi.apache.org/spreadsheet/examples.html
 
   protected[this] def excelSheetToCsv(sheetName: String, maxColumnIdx: Int,
-      rowFilter: ExcelRowFilter, colFilter: ExcelColumnFilter, csvFName: String): Unit = {
+      rowFilter: ExcelRowFilter, colFilter: ExcelColumnFilter, rowTransform: ExcelRowTransform,
+      csvFName: String): Unit = {
 
     val cvsOut = new BufferedWriter(new FileWriter(csvFName))
     val cvsLine = new StringBuilder(8 * 1024)
@@ -208,6 +209,7 @@ class Excel2RDD(
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
         }
+        // TODO: use the rowTransform parameter (which transforms a row; the filter may drop it)
         rowFilter(currentRow, cvsLine.toString, line => { cvsOut.write(line); cvsOut.newLine() },
                   line => { header = Some(line.split(csvSeparator)) })
       }
@@ -235,7 +237,8 @@ class Excel2RDD(
 
 
   def convertExcelSpreadsh2RDD(sheetName: String, rowFilter: ExcelRowFilter,
-      colFilter: ExcelColumnFilter, sc: SparkContext): RDD[LinAlgVector] = {
+      colFilter: ExcelColumnFilter, rowTransform: ExcelRowTransform, sc: SparkContext):
+      RDD[LinAlgVector] = {
 
     // we ensure that all vectors inside the generated RDD from the Excel spreadsheet have the
     // same dimension
@@ -252,7 +255,7 @@ class Excel2RDD(
 
       println(System.currentTimeMillis + ": Starting conversion of Excel XLSX to CSV text file: " +
               tempCsvFName)
-      excelSheetToCsv(sheetName, maxColumn, rowFilter, colFilter, tempCsvFName)
+      excelSheetToCsv(sheetName, maxColumn, rowFilter, colFilter, rowTransform, tempCsvFName)
       println(System.currentTimeMillis + ": Finished conversion of Excel XLSX to CSV text file: " +
               tempCsvFName)
 

@@ -19,6 +19,7 @@ import org.apache.poi.POIXMLException
 import excel2rdd.Excel2RDD
 import excel2rdd.{ExcelRowFilter, ExcelHeaderDiscard, ExcelHeaderExtract, ExcelNoHeader}
 import excel2rdd.{ExcelColumnFilter, ExcelDropColumns, ExcelColumnIdentity}
+import excel2rdd.ExcelRowIdentity
 
 
 object TagExcelObviousErrors extends Tag("private.tags.ExcelObviousErrors")
@@ -114,7 +115,8 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     val wrongSpreadshTab = rightSpreadshTab + "_a_surpluous_wrong_suffix"    // make it wrong
     intercept[NullPointerException] {
       val parsedData = excelXlsx.convertExcelSpreadsh2RDD(wrongSpreadshTab, ExcelHeaderExtract,
-                                                          ExcelColumnIdentity, sparkContext)
+                                                          ExcelColumnIdentity, ExcelRowIdentity,
+                                                          sparkContext)
     }
     excelXlsx.close()
   }
@@ -129,7 +131,7 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
     excelXlsx.open()
     val parsedData = excelXlsx.convertExcelSpreadsh2RDD(rightSpreadshTab, rowFilter, columnFilter,
-                                                        sparkContext)
+                                                        ExcelRowIdentity, sparkContext)
     excelXlsx.close()
     info("Done ETL of the input Excel spreadsheet to an Apache Spark RDD.")
 
