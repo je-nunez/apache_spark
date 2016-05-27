@@ -210,7 +210,13 @@ class Excel2RDD(
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
         }
         // TODO: use the rowTransform parameter (which transforms a row; the filter may drop it)
-        rowFilter(currentRow, cvsLine.toString, line => { cvsOut.write(line); cvsOut.newLine() },
+        rowFilter(currentRow, cvsLine.toString,
+                  line => {
+                    val cellValues = line.split(csvSeparator)
+                    val newValues = rowTransform(currentRow, cellValues)
+                    cvsOut.write(newValues.mkString(csvSeparator))
+                    cvsOut.newLine()
+                  },
                   line => { header = Some(line.split(csvSeparator)) })
       }
     )

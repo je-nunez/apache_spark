@@ -17,7 +17,9 @@ import org.apache.spark.rdd.RDD
 import excel2rdd.Excel2RDD
 import excel2rdd.ExcelHeaderExtract
 import excel2rdd.{ExcelColumnFilter, ExcelDropColumns}
-import excel2rdd.ExcelRowIdentity
+// import excel2rdd.ExcelRowIdentity
+
+import customNYFedBankSCE.NYFedBankSCE
 
 
 object SpCluster {
@@ -40,10 +42,11 @@ object SpCluster {
     val excelXlsx = new Excel2RDD(openInputDataSource)
 
     val excelDropColumns = new ExcelDropColumns(Array(0))
+    val excelTransformRow = new NYFedBankSCE()
     excelXlsx.open()
     val parsedData =
       excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns,
-                                         ExcelRowIdentity, sc)
+                                         excelTransformRow, sc)
     excelXlsx.close()
 
     parsedData.saveAsTextFile(saveRDDAsTxtToDir)
