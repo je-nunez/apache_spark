@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import excel2rdd.ExcelRowTransform
 
-class NYFedBankSCE extends ExcelRowTransform {
+class NYFedBankSCERowTransform extends ExcelRowTransform {
 
   /**
    * We need to transform some cells in the rows given by the "2014 Housing Survey", from
@@ -33,6 +33,10 @@ class NYFedBankSCE extends ExcelRowTransform {
    * of that raw value is given, then we try to assign a value in that range into the
    * raw value (e.g., the median, although it should be any random value inside that
    * range), and then drop the cell with the categorical value.
+   *
+   * (This is not related to giving a uniform value in the range [0, 1] to each entry in the RDD
+   *  before running the clustering. This is not done here in the Excel row transform, but in the
+   *  Spark RDD because it needs to find the minimum and maximum in a column.)
    */
 
   override def transformRow(rowNumber: Int, rowCells: Array[String]): Array[String] = {
@@ -59,12 +63,12 @@ class NYFedBankSCE extends ExcelRowTransform {
     // that it is free-text, so the parsing of those ranges to find its middle point might not
     // be clean either). "0" is a special value which doesn't appear in range, and we receive
     // it when there is no value for HQ17 (ie., when HQ17 is NA).
-    val realRangeMiddleMap = Map("0" -> "0", "1" -> "250", "2" -> "750", "3" -> "1500",
-                                 "4" -> "3500", "5" -> "7500", "6" -> "15000", "7" -> "25000",
-                                 "8" -> "40000", "9" -> "75000", "10" -> "175000",
-                                 "11" -> "375000", "12" -> "625000", "13" -> "875000",
-                                 "14" -> "1000000")
-    realRangeMiddleMap(valueHQ17)
+    val realRangeMiddleMap = Map("0" -> 0, "1" -> 250, "2" -> 750, "3" -> 1500,
+                                 "4" -> 3500, "5" -> 7500, "6" -> 15000, "7" -> 25000,
+                                 "8" -> 40000, "9" -> 75000, "10" -> 175000,
+                                 "11" -> 375000, "12" -> 625000, "13" -> 875000,
+                                 "14" -> 1000000)
+    realRangeMiddleMap(valueHQ17).toString
   }
 
 }

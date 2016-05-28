@@ -15,9 +15,12 @@ ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 85
 
 ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false
 
+// remove the [info] preffixes given by SBT
+outputStrategy        :=   Some(StdoutOutput)
+
 // we don't test the mainapp, just the Excel2RDD package
 
-ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "mainapp.*"
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "mainapp.*;customNYFedBankSCE.*"
 
 ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := {
     if(scalaBinaryVersion.value == "2.11") true

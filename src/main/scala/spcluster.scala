@@ -19,7 +19,8 @@ import excel2rdd.ExcelHeaderExtract
 import excel2rdd.{ExcelColumnFilter, ExcelDropColumns}
 // import excel2rdd.ExcelRowIdentity
 
-import customNYFedBankSCE.NYFedBankSCE
+import customNYFedBankSCE.NYFedBankSCERowTransform
+import customNYFedBankSCE.NYFedBankSCEExcel2RDD
 
 
 object SpCluster {
@@ -39,15 +40,14 @@ object SpCluster {
 
     val sc = new SparkContext(sparkConf)
 
-    val excelXlsx = new Excel2RDD(openInputDataSource)
+    val excelXlsx = new NYFedBankSCEExcel2RDD(openInputDataSource)
 
     val excelDropColumns = new ExcelDropColumns(Array(0))
-    val excelTransformRow = new NYFedBankSCE()
+    val excelTransformRow = new NYFedBankSCERowTransform()
     excelXlsx.open()
     val parsedData =
       excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns,
                                          excelTransformRow, sc)
-    excelXlsx.close()
 
     parsedData.saveAsTextFile(saveRDDAsTxtToDir)
 
@@ -56,6 +56,7 @@ object SpCluster {
       // Excel spreadsheet to be vectors with the same dimension in the new RDD.
       System.err.println("There are vectors inside the RDD which have different dimensions.\n" +
                          "All vectors must have the same dimensions.\nAborting.")
+      excelXlsx.close()
       sc.stop()
       System.exit(1)
     }
@@ -89,6 +90,7 @@ object SpCluster {
       }
     }
 
+    excelXlsx.close()
     sc.stop()
   }
 
@@ -201,7 +203,9 @@ object SpCluster {
    */
 
   def reportKMeanClusters(kMeans: KMeansModel, rdd: RDD[LinAlgVector],
-      originalData: Excel2RDD): Unit = {
+      originalData: NYFedBankSCEExcel2RDD): Unit = {
+
+    originalData.loadHeaderComments()
 
     for { i <- 0 until kMeans.k } {
       val currKMeanCenter = kMeans.clusterCenters(i)
@@ -213,7 +217,8 @@ object SpCluster {
         val value = currKMeanCenter(j)
         if ( value != 0.00 ) {
           val colName = originalData.getHeader(j)
-          println(f"Column $j%4d $colName%-15s value: $value%.8f")
+          val colDescr = originalData.getHeaderComment(colName)
+          println(f"Column $j%4d $colName%-15s value: $value%17.8f    $colDescr")
           nonZeroColumns += 1
         }
       }
