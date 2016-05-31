@@ -9,6 +9,7 @@ import java.net.URL
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.StandardScaler
 import org.apache.spark.mllib.clustering._
 import org.apache.spark.mllib.linalg.{Vector => LinAlgVector}
 import org.apache.spark.rdd.RDD
@@ -49,9 +50,12 @@ object SpCluster {
       excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns,
                                          excelTransformRow, sc)
 
-    parsedData.saveAsTextFile(saveRDDAsTxtToDir)
+    val scaler = new StandardScaler(withMean = false, withStd = true).fit(parsedData)
+    val scaledRDD = parsedData.map(x => scaler.transform(x)).cache
 
-    if (!validateRDDForKMeans(parsedData)) {
+    scaledRDD.saveAsTextFile(saveRDDAsTxtToDir)
+
+    if (!validateRDDForKMeans(scaledRDD)) {
       // This should not happen since the Excel2RDD converter tries to pad shorter rows in the
       // Excel spreadsheet to be vectors with the same dimension in the new RDD.
       System.err.println("There are vectors inside the RDD which have different dimensions.\n" +
@@ -61,7 +65,7 @@ object SpCluster {
       System.exit(1)
     }
 
-    exploreClustersKMeans(parsedData,
+    exploreClustersKMeans(scaledRDD,
       (rdd: RDD[LinAlgVector], model1: KMeansModel, model2: KMeansModel) => {
          if (model1 == null) {
            Double.MaxValue     // choose the second model
@@ -70,13 +74,14 @@ object SpCluster {
          } else {
            val wssse1 = model1.computeCost(rdd)
            val wssse2 = model2.computeCost(rdd)
-           ( wssse1 / model1.k) - ( wssse2 / model2.k )
-           // wssse1 - wssse2
+           // ( wssse1 / model2.k ) - ( wssse2 / model1.k )   // the higher K, the other is better
+           // ( wssse1 / model1.k ) - ( wssse2 / model2.k )
+           wssse1 - wssse2
          }
       }
     ) match {
       case Some(bestClusterModel) => {
-        reportKMeanClusters(bestClusterModel, parsedData, excelXlsx)
+        reportKMeanClusters(bestClusterModel, scaledRDD, excelXlsx)
         // Save and load model (export also in PMML/XML format. You will need
         // org.jpmml.model.JAXBUtil.unmarshalPMML(pmml) and
         // org.jpmml.evaluator.ModelEvaluatorFactory(), etc, to re-read it. R also has a package

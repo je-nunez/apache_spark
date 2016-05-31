@@ -34,9 +34,10 @@ class NYFedBankSCERowTransform extends ExcelRowTransform {
    * raw value (e.g., the median, although it should be any random value inside that
    * range), and then drop the cell with the categorical value.
    *
-   * (This is not related to giving a uniform value in the range [0, 1] to each entry in the RDD
-   *  before running the clustering. This is not done here in the Excel row transform, but in the
-   *  Spark RDD because it needs to find the minimum and maximum in a column.)
+   * (This is not related to giving a uniform value to each entry in the RDD before running the
+   *  clustering. This is not done here in the Excel row transform, but in the Spark RDD because
+   *  it needs to find the minimum and maximum in a column. See the use of
+   *  spark.mllib.feature.StandardScaler in another module.)
    */
 
   override def transformRow(rowNumber: Int, rowCells: Array[String]): Array[String] = {
