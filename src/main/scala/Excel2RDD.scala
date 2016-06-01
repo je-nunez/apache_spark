@@ -89,6 +89,13 @@ class Excel2RDD(
     }
   }
 
+  def findHeader(hdrName: String): Int = {
+    header match {
+      case Some(arr) => arr.indexOf(hdrName)
+      case None => -1
+    }
+  }
+
   def getCsvFileName: String = csvFullFName
 
 

@@ -42,10 +42,11 @@ object SpCluster {
     val sc = new SparkContext(sparkConf)
 
     val excelXlsx = new NYFedBankSCEExcel2RDD(openInputDataSource)
+    excelXlsx.open()
 
     val excelDropColumns = new ExcelDropColumns(Array(0))
-    val excelTransformRow = new NYFedBankSCERowTransform()
-    excelXlsx.open()
+    val excelTransformRow = new NYFedBankSCERowTransform(excelXlsx)
+
     val parsedData =
       excelXlsx.convertExcelSpreadsh2RDD("Data", ExcelHeaderExtract, excelDropColumns,
                                          excelTransformRow, sc)
