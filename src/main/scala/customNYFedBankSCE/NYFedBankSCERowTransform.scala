@@ -41,6 +41,31 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    *  spark.mllib.feature.StandardScaler in another module.)
    */
 
+  protected [this] val transformationList = Array(
+      transformColHQ17 _,
+      transformColHQ15 _,
+      transformColHQ14 _,
+      transformColHQ5b2 _,
+      transformColHQ5a _,
+      transformColHQR6f _,
+      transformColHQR6d _,
+      transformColHQR2bnew _
+
+      // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
+      // to a split tree on this HQ6c3 (but not a K-Means)
+
+   )
+
+  private [this] val mapYears = {
+    val tuples = ArrayBuffer.empty[(String, Int)]
+    tuples += (("0", 1910))
+    tuples += (("1959", 1955))         // "1959" means years before 1960
+    for { year <- 1960 to 2014 } {
+      tuples += ((year.toString, year))
+    }
+    tuples.toMap
+  }
+
   override def transformRow(rowNumber: Int, rowCells: Array[String]): Array[String] = {
     if (rowNumber == 0) {
       // we don't deal with the Excel header row
@@ -49,17 +74,9 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       val newRowCells = ArrayBuffer.empty[String]
       newRowCells ++= rowCells
 
-      // this is a first version of this transformation. It can be better modeled by a sequence
-      // of functions: Array[String] => Unit, and then the transformation on the given rowCells
-      // is to apply the sequence of functions on it. (It is not a composite function because
-      // each function returns 'Unit'.)
-      transformColHQ17(rowCells)
-      transformColHQ15(rowCells)
-      transformColHQ14(rowCells)
-      // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left
-      // as-is to do a split tree on this HQ6c3 (but not a K-Means)
-      transformColHQ5b2(rowCells)
-      transformColHQ5a(rowCells)
+      for (transformation <- transformationList) {
+        transformation(newRowCells)
+      }
 
       newRowCells.toArray
     }
@@ -70,7 +87,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * distances as the ranges it represents.
    */
 
-  private [this] def transformColHQ17(row: Array[String]): Unit = {
+  private [this] def transformColHQ17(row: ArrayBuffer[String]): Unit = {
     // probably a less error-prone of the mapping of the categories to the ranges is possible,
     // for example, by parsing the Excel spreadsheet with their definitions (the only issue is
     // that it is free-text, so the parsing of those ranges to find its middle point might not
@@ -93,7 +110,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * distances as the ranges it represents.
    */
 
-  private [this] def transformColHQ15(row: Array[String]): Unit = {
+  private [this] def transformColHQ15(row: ArrayBuffer[String]): Unit = {
 
     val idx = excelSpreadsh.findHeader("HQ15")
     if (idx >= 0) {
@@ -109,7 +126,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * distances as the ranges it represents.
    */
 
-  private [this] def transformColHQ14(row: Array[String]): Unit = {
+  private [this] def transformColHQ14(row: ArrayBuffer[String]): Unit = {
 
     // There is a typo in the "2014 Housing Survey" Excel workbook for HQ14, from The Center
     // for Microeconomic Data of the Federal Reserve of New York, because it says that the
@@ -132,7 +149,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * distances as the ranges it represents.
    */
 
-  private [this] def transformColHQ5b2(row: Array[String]): Unit = {
+  private [this] def transformColHQ5b2(row: ArrayBuffer[String]): Unit = {
 
     val idx = excelSpreadsh.findHeader("HQ5b2")
     if (idx >= 0) {
@@ -144,7 +161,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
     }
   }
 
-  private [this] def transformColHQ5a(row: Array[String]): Unit = {
+  private [this] def transformColHQ5a(row: ArrayBuffer[String]): Unit = {
 
     val idx = excelSpreadsh.findHeader("HQ5a")
     if (idx >= 0) {
@@ -153,6 +170,32 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
                                    "8" -> "5.25", "9" -> "5.75", "10" -> "6.25", "11" -> "6.75",
                                    "12" -> "7.25", "13" -> "7.75", "14" -> "8.25")
       row(idx) = realRangeMiddleMap(row(idx))
+    }
+  }
+
+  private [this] def transformColHQR6f(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQR6f")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQR6d(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQR6d")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQR2bnew(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQR2bnew")
+    if (idx >= 0) {
+      val realRangeMiddleMap = Map("0" -> "0.0", "1" -> 3, "2" -> 30, "3" -> 365,
+                                   "4" -> 365 * 2, "5" -> 365 * 3, "6" -> 365 * 4)
+      row(idx) = realRangeMiddleMap(row(idx)).toString
     }
   }
 
