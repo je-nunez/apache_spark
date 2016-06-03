@@ -49,7 +49,11 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQ5a _,
       transformColHQR6f _,
       transformColHQR6d _,
-      transformColHQR2bnew _
+      transformColHQR2bnew _,
+      transformColHQR1b _,
+      transformColHQR1a _,
+      transformColHQH11f _,
+      transformColHQH11d _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
       // to a split tree on this HQ6c3 (but not a K-Means)
@@ -196,6 +200,42 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       val realRangeMiddleMap = Map("0" -> "0.0", "1" -> 3, "2" -> 30, "3" -> 365,
                                    "4" -> 365 * 2, "5" -> 365 * 3, "6" -> 365 * 4)
       row(idx) = realRangeMiddleMap(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQR1b(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQR1b")
+    if (idx >= 0) {
+      // Here "7" is a little special, more like NA. Very probably this attribute should be
+      // treated the same way as column "HQ6c3"
+      val realRangeMiddleMap = Map("0" -> 0, "1" -> 1, "2" -> 3, "3" -> 5,
+                                   "4" -> 7, "5" -> 10, "6" -> 15, "7" -> 0)
+      row(idx) = realRangeMiddleMap(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQR1a(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQR1a")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH11f(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH11f")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH11d(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH11d")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
     }
   }
 
