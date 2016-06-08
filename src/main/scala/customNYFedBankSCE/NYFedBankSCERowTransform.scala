@@ -264,7 +264,15 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
         // in any case, since this column "HQH11b_1" exists, then clear the correlated column
         // "HQH11b2" which also exists. This way, we are clearing the correlation and making the
         // K-Means clustering unbiased again.
-        row(idxHQH11b2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default
+        row(idxHQH11b2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
+        // An alternative to setting the value to "0" of the entry HQH11b2 in the row vector, would
+        // be to delete this entry HQH11b2 in the vector (via a "row.remove(idxHQH11b2)" in Scala)
+        // but then the mapping between the header names array (the protected array
+        // "excelSpreadsh.header" used inside excelSpreadsh.findHeader(...)) and the vector data is
+        // shifted by one, because the column HQH11b2 was deleted in each (all) of the data
+        // vectors, but not in header names array. It is easier just to set the value of HQH11b2 to
+        // "0" in the data vector, just clearing the correlation with the other column HQH11b_1,
+        // than to wholy delete this entry HQH11b2 in the data vector.
       } else {
         // the column "HQH11b_1" doesn't exist in all the Excel spreadsheet, only the column
         // "HQH11b2": just flatten this nominal column "HQH11b2" into the middle value of the
