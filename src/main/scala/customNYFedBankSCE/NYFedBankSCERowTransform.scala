@@ -53,7 +53,8 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQR1b _,
       transformColHQR1a _,
       transformColHQH11f _,
-      transformColHQH11d _
+      transformColHQH11d _,
+      transformColHQH11b2 _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
       // to a split tree on this HQ6c3 (but not a K-Means)
@@ -236,6 +237,40 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
     val idx = excelSpreadsh.findHeader("HQH11d")
     if (idx >= 0) {
       row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH11b2(row: ArrayBuffer[String]): Unit = {
+
+    val idxHQH11b2 = excelSpreadsh.findHeader("HQH11b2")
+    if (idxHQH11b2 >= 0) {
+      val realRangeMiddleMap = Map("0" -> 0, "1" -> 12500, "2" -> 37500, "3" -> 75000,
+                                   "4" -> 125000, "5" -> 175000, "6" -> 250000, "7" -> 400000,
+                                   "8" -> 650000, "9" -> 850000)
+      val middleValueHQH11b2 = realRangeMiddleMap(row(idxHQH11b2)).toString
+      // the columns "HQH11b_1" and "HQH11b2" are linearly correlated in the "2014 Housing Survey",
+      // from The Center for Microeconomic Data of the Federal Reserve of New York, so we must
+      // leave only one of them in the Apache Spark RDD, otherwise in the K-Means Clustering
+      // both columns will increase the weight of their distance by two, making them more important
+      // than other columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
+
+      val idxHQH11b_1 = excelSpreadsh.findHeader("HQH11b_1")
+      if (idxHQH11b_1 >= 0) {
+        // the column "HQH11b_1" does exist in the Excel spreadsheet: see if it is empty, and if
+        // so, assign to it the middle value of the category "HQH11b2"
+        if (row(idxHQH11b_1) == "" || row(idxHQH11b_1) == "0") {
+          row(idxHQH11b_1) = middleValueHQH11b2
+        }
+        // in any case, since this column "HQH11b_1" exists, then clear the correlated column
+        // "HQH11b2" which also exists. This way, we are clearing the correlation and making the
+        // K-Means clustering unbiased again.
+        row(idxHQH11b2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default
+      } else {
+        // the column "HQH11b_1" doesn't exist in all the Excel spreadsheet, only the column
+        // "HQH11b2": just flatten this nominal column "HQH11b2" into the middle value of the
+        // range, so the distance calculation has a little more of meaning
+        row(idxHQH11b2) = middleValueHQH11b2
+      }
     }
   }
 
