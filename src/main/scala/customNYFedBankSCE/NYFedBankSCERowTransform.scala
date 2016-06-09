@@ -54,10 +54,13 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQR1a _,
       transformColHQH11f _,
       transformColHQH11d _,
-      transformColHQH11b2 _
+      transformColHQH11b2 _,
+      transformColHQH11a _,
+      transformColHQH6a3 _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
-      // to a split tree on this HQ6c3 (but not a K-Means)
+      // to a split tree on this HQ6c3 (but not a K-Means). The same reason with HQH6d2 and with
+      // HQH6c2.
 
    )
 
@@ -279,6 +282,39 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
         // range, so the distance calculation has a little more of meaning
         row(idxHQH11b2) = middleValueHQH11b2
       }
+    }
+  }
+
+  private [this] def transformColHQH11a(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH11a")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH6a3(row: ArrayBuffer[String]): Unit = {
+
+    // column HQH6a3 is the sign of the magnitude given in HQH6a3part2_1
+    val idxHQH6a3 = excelSpreadsh.findHeader("HQH6a3")
+    val idxHQH6a3part2_1 = excelSpreadsh.findHeader("HQH6a3part2_1")
+
+    if (idxHQH6a3 >= 0 && idxHQH6a3part2_1 >= 0) {
+      // both columns HQH6a3 and HQH6a3part2_1 exist
+
+      if (row(idxHQH6a3) == "3") {
+        // then the sign of the absolute magnitude should be negative
+        row(idxHQH6a3part2_1) = "-" + row(idxHQH6a3part2_1)
+      }
+
+      // in any case, since both columns HQH6a3 and HQH6a3part2_1 exist and HQH6a3 is just the
+      // sign of the magnitude in HQH6a3part2_1 (assigned above), then we can clear the sign
+      // in HQH6a3, since it has already been represented in HQH6a3part2_1 (the only doubt
+      // should be if the value of HQH6a3 is "4", which means "Don't know", but it is difficult
+      // to see how this "4" can have a meaningful K-Means distance with other values of this
+      // column HQH6a3)
+
+      row(idxHQH6a3) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
     }
   }
 
