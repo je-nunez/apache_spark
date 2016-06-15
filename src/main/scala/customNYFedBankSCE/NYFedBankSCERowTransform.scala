@@ -59,11 +59,13 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQH6a3 _,
       transformCoHQH6a _,
       transformColHQH5m3 _,
-      transformColHQH5k _
+      transformColHQH5k _,
+      transformColHQH5i _,
+      transformColHQH5c2 _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
       // to a split tree on this HQ6c3 (but not a K-Means). The same reason with data columns
-      // HQH6d2, HQH6c2, HQH5o, HQH6, and HQH5m in the NYFed "2014 Housing Survey".
+      // HQH6d2, HQH6c2, HQH5o, HQH6, HQH5m, HQH5 and HQH4a3 in the NYFed "2014 Housing Survey".
 
    )
 
@@ -376,6 +378,51 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       row(idx) = mapYears(row(idx)).toString
     }
   }
+
+  private [this] def transformColHQH5i(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH5i")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH5c2(row: ArrayBuffer[String]): Unit = {
+
+    val idxHQH5c2 = excelSpreadsh.findHeader("HQH5c2")
+    if (idxHQH5c2 >= 0) {
+      val realRangeMiddleMap = Map("0" -> 0, "1" -> 250, "2" -> 750, "3" -> 1250, "4" -> 1750,
+                                   "5" -> 2250, "6" -> 2750, "7" -> 3250, "8" -> 3750,
+                                   "9" -> 4250, "10" -> 4750, "11" -> 5250, "12" -> 5750,
+                                   "13" -> 6250)
+
+      val middleValueHQH5c2 = realRangeMiddleMap(row(idxHQH5c2)).toString
+
+      // the columns "HQH5b" and "HQH5c2" are linearly correlated, so we must leave only one of
+      // them in the Apache Spark RDD, otherwise in the K-Means Clustering both columns will
+      // increase the weight of their distance by two, making them more important than other
+      // columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
+
+      val idxHQH5b = excelSpreadsh.findHeader("HQH5b")
+      if (idxHQH5b >= 0) {
+        // the column "HQH5b" does exist in the Excel spreadsheet: see if it is empty, and if
+        // so, assign to it the middle value of the category "HQH5c2"
+        if (row(idxHQH5b) == "" || row(idxHQH5b) == "0") {
+          row(idxHQH5b) = middleValueHQH5c2
+        }
+        // in any case, since this column "HQH5b" exists, then clear the correlated column
+        // "HQH5c2" which also exists. (See notes above for "HQH11b2" and "HQH11b_1", this
+        // case is similar, but the ranges not.)
+        row(idxHQH5c2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
+      } else {
+        // the column "HQH5b" doesn't exist in all the Excel spreadsheet, only the column
+        // "HQH5c2": just flatten this nominal column "HQH5c2" into the middle value of the
+        // range, so the distance calculation has a little more of meaning
+        row(idxHQH5c2) = middleValueHQH5c2
+      }
+    }
+  }
+
 
 }
 
