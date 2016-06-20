@@ -65,11 +65,15 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQH2bnew _,
       transformColHQH2b _,
       transformCoHQH1b _,
-      transformColHQH1ab2 _
+      transformColHQH1ab2 _,
+      transformColHQH1aa _,
+      transformColHQH1 _,
+      transformColHQ4b1 _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
       // to a split tree on this HQ6c3 (but not a K-Means). The same reason with data columns
-      // HQH6d2, HQH6c2, HQH5o, HQH6, HQH5m, HQH5 and HQH4a3 in the NYFed "2014 Housing Survey".
+      // HQH6d2, HQH6c2, HQH5o, HQH6, HQH5m, HQH5, HQH4a3, HQ4b2, and HQ4b in the NYFed
+      // "2014 Housing Survey".
 
    )
 
@@ -515,5 +519,36 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       row(idx) = mapYears(row(idx)).toString
     }
   }
+
+  private [this] def transformColHQH1aa(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH1aa")
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
+    }
+  }
+
+  private [this] def transformColHQH1(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQH1")
+    if (idx >= 0) {
+      if (row(idx) != "1") {
+        row(idx) = mapYears(row(idx)).toString
+      } else {
+        // row(idx) == "1": meaning "I/We did not buy this residence"
+        row(idx) = "0"
+      }
+    }
+  }
+
+  private [this] def transformColHQ4b1(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader("HQ4b1")
+    if (idx >= 0) {
+      val realRangeMiddleMap = Map("0" -> 0, "1" -> 2, "2" -> 12, "3" -> 30, "4" -> 50)
+      row(idx) = realRangeMiddleMap(row(idx)).toString
+    }
+  }
+
 
 }
