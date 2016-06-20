@@ -44,6 +44,7 @@ For example:
      Column 163 HQH6b_1       value:  0.72465210 Percent chance will refinance over next 12 months
      ...
      Number for non-zero columns for center of KMeans cluster 0: 175
+     ... [the centers of the other clusters, cluster 1 and so on, reported below] ...
 
 Note in the sample above that the columns indexed 119, 120, 122, 123, 125 to 153, 155, 157, 161 and 162, do not appear in the center of this cluster 0 found, because their value in this center is 0.0, so they are omitted in the report for the sake of brevity.
 
