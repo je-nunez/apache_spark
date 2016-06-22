@@ -208,10 +208,10 @@ class Excel2RDD(
             case Some(s) => {
               cvsLine.append(fillEmptyCells(previousCellCol, currentCol, colFilter))
               cvsLine.append(s)
+              previousCellCol = currentCol
             }
             case _ =>
           }
-          previousCellCol = currentCol
         }
         if (previousCellCol < maxColumnIdx) {
           cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))

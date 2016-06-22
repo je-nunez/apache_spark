@@ -31,6 +31,7 @@ object TagExcelDoFilterHeader extends Tag("private.tags.Excel.Filter.Header.DoFi
 object TagExcelNoFilterHeader extends Tag("private.tags.Excel.Filter.Header.NoFilter")
 
 object TagExcelNoFilterColumns extends Tag("private.tags.Excel.Filter.Columns.NoFilter")
+object TagExcelDoFilter1stColm extends Tag("private.tags.Excel.Filter.Columns.Filter1s")
 object TagExcelDoFilter2ndColm extends Tag("private.tags.Excel.Filter.Columns.Filter2d")
 object TagExcelDoFilter2t4Cols extends Tag("private.tags.Excel.Filter.Columns.Filter2t4")
 
@@ -178,6 +179,15 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     res should equal (true)
   }
 
+  test("Converting an Excel XLSX to CSV, filtering out first column only",
+       TagExcelNoFilterHeader, TagExcelDoFilter1stColm, TagExcelFilteringFunc) {
+
+    val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(0)),
+                                          "/parsed_sample_excel_with_header_no_1st_col.csv")
+
+    res should equal (true)
+  }
+
   test("Converting an Excel XLSX to CSV, filtering out second column only",
        TagExcelNoFilterHeader, TagExcelDoFilter2ndColm, TagExcelFilteringFunc) {
 
@@ -192,6 +202,15 @@ class TestExcel2Rdd extends FunSuite with Matchers {
 
     val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(1, 2, 3)),
                                           "/parsed_sample_excel_with_header_no_2nd_to_4th_cols.csv")
+
+    res should equal (true)
+  }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row and first column",
+       TagExcelDoFilterHeader, TagExcelDoFilter1stColm, TagExcelFilteringFunc) {
+
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, new ExcelDropColumns(Array(0)),
+                                          "/parsed_sample_excel_no_header_no_1st_col.csv")
 
     res should equal (true)
   }
