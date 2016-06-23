@@ -34,6 +34,7 @@ object TagExcelNoFilterColumns extends Tag("private.tags.Excel.Filter.Columns.No
 object TagExcelDoFilter1stColm extends Tag("private.tags.Excel.Filter.Columns.Filter1s")
 object TagExcelDoFilter2ndColm extends Tag("private.tags.Excel.Filter.Columns.Filter2d")
 object TagExcelDoFilter2t4Cols extends Tag("private.tags.Excel.Filter.Columns.Filter2t4")
+object TagExcelDoFilterLastColm extends Tag("private.tags.Excel.Filter.Columns.FilterLast")
 
 
 class TestExcel2Rdd extends FunSuite with Matchers {
@@ -206,6 +207,15 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     res should equal (true)
   }
 
+  test("Converting an Excel XLSX to CSV, filtering out last column only",
+       TagExcelNoFilterHeader, TagExcelDoFilterLastColm, TagExcelFilteringFunc) {
+
+    val res = stdTestExcel2RddWithFilters(ExcelNoHeader, new ExcelDropColumns(Array(6)),
+                                          "/parsed_sample_excel_with_header_no_last_col.csv")
+
+    res should equal (true)
+  }
+
   test("Converting an Excel XLSX to CSV, filtering out header row and first column",
        TagExcelDoFilterHeader, TagExcelDoFilter1stColm, TagExcelFilteringFunc) {
 
@@ -234,6 +244,15 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     res should equal (true)
   }
 
+  test("Converting an Excel XLSX to CSV, filtering out header row and last column",
+       TagExcelDoFilterHeader, TagExcelDoFilterLastColm, TagExcelFilteringFunc) {
+
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderDiscard, new ExcelDropColumns(Array(6)),
+                                          "/parsed_sample_excel_no_header_no_last_col.csv")
+
+    res should equal (true)
+  }
+
   def removeIndices[T:ClassTag](indicesToDrop: Seq[Int], originalSeq: Seq[T]): Seq[T] = {
     originalSeq.indices.diff(indicesToDrop).map( { case (idx) => originalSeq(idx) } )
   }
@@ -248,6 +267,24 @@ class TestExcel2Rdd extends FunSuite with Matchers {
                                                case (expectedHdrVal, hrdIdx) =>
                                                  e.getHeader(hrdIdx) == expectedHdrVal
                                              }
+                                          })
+
+    res should equal (true)
+  }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row and first column" +
+       ", and saving header internally",
+       TagExcelDoFilterHeader, TagExcelDoFilter1stColm, TagExcelFilteringFunc) {
+
+    val dropCols = Array(0)
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, new ExcelDropColumns(dropCols),
+                                          "/parsed_sample_excel_no_header_no_1st_col.csv",
+                                          (e: Excel2RDD) => {
+                                             removeIndices(dropCols, rightSpreadshHeader).
+                                               zipWithIndex forall {
+                                                 case (expectedHdrVal, hrdIdx) =>
+                                                   e.getHeader(hrdIdx) == expectedHdrVal
+                                               }
                                           })
 
     res should equal (true)
@@ -278,6 +315,24 @@ class TestExcel2Rdd extends FunSuite with Matchers {
     val dropCols = Array(1, 2, 3)
     val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, new ExcelDropColumns(dropCols),
                                           "/parsed_sample_excel_no_header_no_2nd_to_4th_cols.csv",
+                                          (e: Excel2RDD) => {
+                                             removeIndices(dropCols, rightSpreadshHeader).
+                                               zipWithIndex forall {
+                                                 case (expectedHdrVal, hrdIdx) =>
+                                                   e.getHeader(hrdIdx) == expectedHdrVal
+                                               }
+                                          })
+
+    res should equal (true)
+  }
+
+  test("Converting an Excel XLSX to CSV, filtering out header row and last column" +
+       ", and saving header internally",
+       TagExcelDoFilterHeader, TagExcelDoFilterLastColm, TagExcelFilteringFunc) {
+
+    val dropCols = Array(6)
+    val res = stdTestExcel2RddWithFilters(ExcelHeaderExtract, new ExcelDropColumns(dropCols),
+                                          "/parsed_sample_excel_no_header_no_last_col.csv",
                                           (e: Excel2RDD) => {
                                              removeIndices(dropCols, rightSpreadshHeader).
                                                zipWithIndex forall {

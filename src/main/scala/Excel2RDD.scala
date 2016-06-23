@@ -214,9 +214,12 @@ class Excel2RDD(
           }
         }
         if (previousCellCol < maxColumnIdx) {
-          cvsLine.append((csvSeparator + fillNANullValue) * (maxColumnIdx - previousCellCol))
+          // Fill from the last "previousCellCol" actually seen, to "maxColumnIdx", included (+1)
+          cvsLine.append(fillEmptyCells(previousCellCol, maxColumnIdx + 1, colFilter))
         }
-        // TODO: use the rowTransform parameter (which transforms a row; the filter may drop it)
+        // Now that the csvLine has been filtered (dropping columns, for instance), apply the
+        // rowFilter to see whether to drop the line, and if not, the rowTransform to transform
+        // its values and write the line to the csv text file.
         rowFilter(currentRow, cvsLine.toString,
                   line => {
                     val cellValues = line.split(csvSeparator)
