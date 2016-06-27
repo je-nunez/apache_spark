@@ -68,7 +68,8 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQH1ab2 _,
       transformColHQH1aa _,
       transformColHQH1 _,
-      transformColHQ4b1 _
+      transformColHQ4b1 _,
+      transformColHQ1_1 _
 
       // HQ6c3 doesn't have a numerical category defined (no distance), but needs to be left as-is
       // to a split tree on this HQ6c3 (but not a K-Means). The same reason with data columns
@@ -550,5 +551,58 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
     }
   }
 
+  private [this] def transformColHQ1_1(row: ArrayBuffer[String]): Unit = {
+
+    val idxHQ1_1 = excelSpreadsh.findHeader("HQ1_1")
+    val idxHQ1hidden_1 = excelSpreadsh.findHeader("HQ1hidden_1")
+    val idxHQ1b = excelSpreadsh.findHeader("HQ1b")
+
+    val realRangeMiddleMapHQ1b =
+      Map("0" -> 0, "1" -> 25000, "2" -> 75000, "3" -> 125000, "4" -> 175000, "5" -> 225000,
+          "6" -> 275000, "7" -> 325000, "8" -> 375000, "9" -> 425000, "10" -> 475000,
+          "11" -> 525000, "12" -> 575000, "13" -> 625000, "14" -> 675000, "15" -> 750000,
+          "16" -> 850000, "17" -> 950000, "18" -> 1125000, "19" -> 1375000, "20" -> 1750000,
+          "21" -> 2500000, "22" -> 3250000)
+
+    if (idxHQ1_1 >= 0) {
+
+      if (row(idxHQ1_1) == "0" || row(idxHQ1_1) == "0.0" || row(idxHQ1_1) == "") {
+        // we need to replace the value of the cell (attribute) HQ1_1 because it is zero, and it
+        // have sense the market value of a home to be zero. (In any case, if so, HQ1hidden_1
+        // would have the same value of zero, so HQ1_1 would remain in zero.)
+        // There are two alternatives to clear the zero value of HQ1_1: first, HQ1hidden_1, if
+        // exists, otherwise from HQ1b, if exists.
+        if (idxHQ1hidden_1 >= 0) {
+          row(idxHQ1_1) = row(idxHQ1hidden_1)
+        } else if (idxHQ1b >=0) {
+          row(idxHQ1_1) = realRangeMiddleMapHQ1b(row(idxHQ1b)).toString
+        }
+      }
+
+      // Clear the value of the related attributes HQ1hidden_1 and HQ1b, if they exist.
+      if (idxHQ1hidden_1 >= 0) {
+        row(idxHQ1hidden_1) = excelSpreadsh.fillNANullValue.toString
+      }
+      if (idxHQ1b >= 0) {
+        row(idxHQ1b) = excelSpreadsh.fillNANullValue.toString
+      }
+    } else if (idxHQ1hidden_1 >= 0 && idxHQ1b >= 0) {
+      // HQ1_1 does not exist for the entire dataset, but HQ1hidden_1 and HQ1b do: we let the
+      // K-Means run on HQ1hidden_1 instead on the default HQ1_1
+      if (row(idxHQ1hidden_1) == "0" || row(idxHQ1hidden_1) == "0.0" ||
+          row(idxHQ1hidden_1) == "") {
+        row(idxHQ1_1) = realRangeMiddleMapHQ1b(row(idxHQ1b)).toString
+      }
+      // Clear the value of the related attribute HQ1b, if it exists
+      if (idxHQ1b >= 0) {
+        row(idxHQ1b) = excelSpreadsh.fillNANullValue.toString
+      }
+    } else if (idxHQ1b >= 0) {
+      // HQ1_1 and HQ1hidden_1 do not exist for the entire dataset, but HQ1b does: we let the
+      // K-Means run on HQ1b
+      row(idxHQ1b) = realRangeMiddleMapHQ1b(row(idxHQ1b)).toString
+    }
+
+  }
 
 }
