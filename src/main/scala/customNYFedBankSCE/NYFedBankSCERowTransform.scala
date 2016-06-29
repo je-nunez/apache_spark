@@ -47,26 +47,26 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColHQ14 _,
       transformColHQ5b2 _,
       transformColHQ5a _,
-      transformColHQR6f _,
-      transformColHQR6d _,
+      transformColYear("HQR6f") _,
+      transformColYear("HQR6d") _,
       transformColHQR2bnew _,
       transformColHQR1b _,
-      transformColHQR1a _,
-      transformColHQH11f _,
-      transformColHQH11d _,
+      transformColYear("HQR1a") _,
+      transformColYear("HQH11f") _,
+      transformColYear("HQH11d") _,
       transformColHQH11b2 _,
-      transformColHQH11a _,
+      transformColYear("HQH11a") _,
       transformColHQH6a3 _,
       transformCoHQH6a _,
       transformColHQH5m3 _,
-      transformColHQH5k _,
-      transformColHQH5i _,
+      transformColYear("HQH5k") _,
+      transformColYear("HQH5i") _,
       transformColHQH5c2 _,
       transformColHQH2bnew _,
       transformColHQH2b _,
       transformCoHQH1b _,
-      transformColHQH1ab2 _,
-      transformColHQH1aa _,
+      transformColYear("HQH1ab2") _,
+      transformColYear("HQH1aa") _,
       transformColHQH1 _,
       transformColHQ4b1 _,
       transformColHQ1_1 _
@@ -101,6 +101,20 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       }
 
       newRowCells.toArray
+    }
+  }
+
+  /**
+   * A curried function to transform a column which has the standard code for the years in the
+   * "2014 Housing Survey", from The Center for Microeconomic Data of the Federal Reserve of New
+   * York.
+   */
+
+  private [this] def transformColYear(columnName: String)(row: ArrayBuffer[String]): Unit = {
+
+    val idx = excelSpreadsh.findHeader(columnName)
+    if (idx >= 0) {
+      row(idx) = mapYears(row(idx)).toString
     }
   }
 
@@ -195,22 +209,6 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
     }
   }
 
-  private [this] def transformColHQR6f(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQR6f")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQR6d(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQR6d")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
   private [this] def transformColHQR2bnew(row: ArrayBuffer[String]): Unit = {
 
     val idx = excelSpreadsh.findHeader("HQR2bnew")
@@ -230,30 +228,6 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       val realRangeMiddleMap = Map("0" -> 0, "1" -> 1, "2" -> 3, "3" -> 5,
                                    "4" -> 7, "5" -> 10, "6" -> 15, "7" -> 0)
       row(idx) = realRangeMiddleMap(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQR1a(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQR1a")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQH11f(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH11f")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQH11d(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH11d")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
     }
   }
 
@@ -296,14 +270,6 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
         // range, so the distance calculation has a little more of meaning
         row(idxHQH11b2) = middleValueHQH11b2
       }
-    }
-  }
-
-  private [this] def transformColHQH11a(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH11a")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
     }
   }
 
@@ -375,22 +341,6 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
         // range, so the distance calculation has a little more of meaning
         row(idxHQH5m3) = middleValueHQH5m3
       }
-    }
-  }
-
-  private [this] def transformColHQH5k(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH5k")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQH5i(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH5i")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
     }
   }
 
@@ -510,22 +460,6 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       val realRangeMiddleMap = Map("0" -> 0, "1" -> 1, "2" -> 3, "3" -> 5, "4" -> 7,
                                    "5" -> 9, "6" -> 12, "7" -> 0)
       row(idx) = realRangeMiddleMap(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQH1ab2(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH1ab2")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
-    }
-  }
-
-  private [this] def transformColHQH1aa(row: ArrayBuffer[String]): Unit = {
-
-    val idx = excelSpreadsh.findHeader("HQH1aa")
-    if (idx >= 0) {
-      row(idx) = mapYears(row(idx)).toString
     }
   }
 
