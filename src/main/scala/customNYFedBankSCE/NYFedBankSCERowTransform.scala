@@ -1,5 +1,11 @@
 // scalastyle:off
 
+// This module implements a translation of the "2014 Housing Survey", from The Center for
+// Microeconomic Data of the Federal Reserve of New York, to continuous real-values, so
+// explicit literals are necessary here. (In a future version, this translation will
+// reside in a separate resource file in this same JAR archive. Meanwhile:
+// scalastyle:off multiple.string.literals
+
 package customNYFedBankSCE
 
 import scala.collection.mutable.ArrayBuffer
@@ -41,7 +47,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    *  spark.mllib.feature.StandardScaler in another module.)
    */
 
-  protected [this] val transformationList = Array(
+  protected[this] val transformationList = Array(
       transformColCategorical("HQ17") _,
       transformColCategorical("HQ15") _,
       transformColCategorical("HQ14") _,
@@ -54,16 +60,16 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       transformColYear("HQR1a") _,
       transformColYear("HQH11f") _,
       transformColYear("HQH11d") _,
-      transformColHQH11b2 _,
+      transformRawCol4CategCol("HQH11b_1", "HQH11b2") _,
       transformColYear("HQH11a") _,
       transformColHQH6a3 _,
       transformColCategorical("HQH6a") _,
-      transformColHQH5m3 _,
+      transformRawCol4CategCol("HQH5m2_1", "HQH5m3") _,
       transformColYear("HQH5k") _,
       transformColYear("HQH5i") _,
-      transformColHQH5c2 _,
-      transformColHQH2bnew _,
-      transformColHQH2b _,
+      transformRawCol4CategCol("HQH5b", "HQH5c2") _,
+      transformRawCol4CategCol("HQH2new_1", "HQH2bnew") _,
+      transformRawCol4CategCol("HQH2_1", "HQH2b") _,
       transformColCategorical("HQH1b") _,
       transformColYear("HQH1ab2") _,
       transformColYear("HQH1aa") _,
@@ -78,7 +84,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
 
    )
 
-  private [this] val mapYears: Map[String, String] = {
+  private[this] val mapYears: Map[String, String] = {
     val tuples = ArrayBuffer.empty[(String, String)]
     tuples += (("0", "1910"))
     tuples += (("1959", "1955"))         // "1959" means years before 1960
@@ -124,7 +130,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    *       it when there is no value for the cell in the Excel spreadsheet (ie., the cell has NA).
    */
 
-  private [this] val middleValuesOfRangesColumn: Map[String, Map[String, String]] = Map(
+  private[this] val middleValuesOfRangesColumn: Map[String, Map[String, String]] = Map(
     "HQ17" -> Map("0" -> "0", "1" -> "250", "2" -> "750", "3" -> "1500", "4" -> "3500",
                   "5" -> "7500", "6" -> "15000", "7" -> "25000", "8" -> "40000", "9" -> "75000",
                   "10" -> "175000", "11" -> "375000", "12" -> "625000", "13" -> "875000",
@@ -171,6 +177,33 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
 
   )
 
+  private[this] val middleValuesOfRangesCategColumn4RawCol: Map[String, Map[String, String]] =
+    Map(
+
+      "HQH11b2" -> Map("0" -> "0", "1" -> "12500", "2" -> "37500", "3" -> "75000", "4" -> "125000",
+                       "5" -> "175000", "6" -> "250000", "7" -> "400000", "8" -> "650000",
+                       "9" -> "850000"),
+
+      "HQH5m3" -> Map("0" -> "0", "1" -> "1.0", "2" -> "2.25", "3" -> "2.75", "4" -> "3.25",
+                      "5" -> "3.75", "6" -> "4.25", "7" -> "4.75", "8" -> "5.25", "9" -> "5.75",
+                      "10" -> "6.25", "11" -> "6.75", "12" -> "7.25", "13" -> "7.75",
+                      "14" -> "8.25"),
+
+      "HQH5c2" -> Map("0" -> "0", "1" -> "250", "2" -> "750", "3" -> "1250", "4" -> "1750",
+                      "5" -> "2250", "6" -> "2750", "7" -> "3250", "8" -> "3750", "9" -> "4250",
+                      "10" -> "4750", "11" -> "5250", "12" -> "5750", "13" -> "6250"),
+
+      "HQH2bnew" -> Map("0" -> "0", "1" -> "2500", "2" -> "7500", "3" -> "12500", "4" -> "17500",
+                        "5" -> "25000", "6" -> "40000", "7" -> "65000", "8" -> "90000",
+                        "9" -> "125000", "10" -> "175000", "11" -> "350000", "12" -> "625000",
+                        "13" -> "875000"),
+
+      "HQH2b" -> Map("0" -> "0", "1" -> "25000", "2" -> "75000", "3" -> "125000", "4" -> "175000",
+                     "5" -> "250000", "6" -> "400000", "7" -> "650000", "8" -> "900000",
+                     "9" -> "1150000")
+
+    )
+
 
   override def transformRow(rowNumber: Int, rowCells: Array[String]): Array[String] = {
     if (rowNumber == 0) {
@@ -180,7 +213,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       val newRowCells = ArrayBuffer.empty[String]
       newRowCells ++= rowCells
 
-      for (transformation <- transformationList) {
+      for {transformation <- transformationList} {
         transformation(newRowCells)
       }
 
@@ -194,7 +227,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * York.
    */
 
-  private [this] def transformColYear(columnName: String)(row: ArrayBuffer[String]): Unit = {
+  private[this] def transformColYear(columnName: String)(row: ArrayBuffer[String]): Unit = {
 
     val idx = excelSpreadsh.findHeader(columnName)
     if (idx >= 0) {
@@ -208,7 +241,7 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
    * its range.
    */
 
-  private [this] def transformColCategorical(columnName: String)(row: ArrayBuffer[String]): Unit =
+  private[this] def transformColCategorical(columnName: String)(row: ArrayBuffer[String]): Unit =
   {
     require(middleValuesOfRangesColumn.contains(columnName),
             s"The map 'middleValuesOfRangesColumn' must have a definition for key '$columnName'")
@@ -225,54 +258,92 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
       // input Excel spreadsheet.)
       require(translatedMiddleVal.toDouble >= Double.MinValue,
               s"The mapped value for code '$originalValue' in the column key '$columnName' " +
-              "must be a double")
+              "in the map 'middleValuesOfRangesColumn' must be a double")
       row(idx) = translatedMiddleVal
     }
   }
 
-  private [this] def transformColHQH11b2(row: ArrayBuffer[String]): Unit = {
+  /**
+   * A curried function to infer the value of a column with a raw value in the "2014 Housing
+   * Survey", from The Center for Microeconomic Data of the Federal Reserve of New York, from
+   * the value of the associated (correlated) categorical column -when this second column
+   * exists-, to the middle value of this second column. It clears the value of this second
+   * column so as to break the relation and the K-Means not be affected by double weights.
+   *
+   * For example, the columns "HQH11b_1" and "HQH11b2" are correlated in the "2014 Housing
+   * Survey":
+   *    "HQH11b_1" has the raw value
+   *    "HQH11b2" has the category (range) in which that raw value falls.
+   * This method transforms the raw value (if empty) to the middle value of the range of the
+   * categorical value, and then clears the categorical value. Otherwise, if the raw value
+   * doesn't exist ___in all___ the Excel spreadsheet, then it converts the categorical value to
+   * the middle value of its range, so that the K-Means will work instead on this transformed
+   * column.
+   */
 
-    val idxHQH11b2 = excelSpreadsh.findHeader("HQH11b2")
-    if (idxHQH11b2 >= 0) {
-      val realRangeMiddleMap = Map("0" -> 0, "1" -> 12500, "2" -> 37500, "3" -> 75000,
-                                   "4" -> 125000, "5" -> 175000, "6" -> 250000, "7" -> 400000,
-                                   "8" -> 650000, "9" -> 850000)
-      val middleValueHQH11b2 = realRangeMiddleMap(row(idxHQH11b2)).toString
-      // the columns "HQH11b_1" and "HQH11b2" are linearly correlated in the "2014 Housing Survey",
-      // from The Center for Microeconomic Data of the Federal Reserve of New York, so we must
-      // leave only one of them in the Apache Spark RDD, otherwise in the K-Means Clustering
+  private[this] def transformRawCol4CategCol(rawColName: String, categColName: String)
+      (row: ArrayBuffer[String]): Unit = {
+
+    require(rawColName != categColName,
+            "The names of the column with the raw value and the column with the associated " +
+            "categorical value must be different. Ie., both columns are different.")
+
+    require(middleValuesOfRangesCategColumn4RawCol.contains(categColName),
+            s"The map 'middleValuesOfRangesCategColumn4RawCol' must have a definition " +
+            s"for key '$categColName'")
+
+    val idxCategCol = excelSpreadsh.findHeader(categColName)
+    if (idxCategCol >= 0) {
+      val middleValuesForCategColumn = middleValuesOfRangesCategColumn4RawCol(categColName)
+      val originalCategValue = row(idxCategCol)
+      val middleValueCategCol = middleValuesForCategColumn(originalCategValue)
+
+      // the new "middleValueCategCol" corresponding to the input value "originalCategValue" must
+      // be a double, for the K-Means works on double values. (To verify this condition on the map
+      // "middleValueCategCol" for several rows in the input Excel spreadsheet is inefficient,
+      // because it could verify the same value multiple times, for different rows in the
+      // input Excel spreadsheet.)
+      require(middleValueCategCol.toDouble >= Double.MinValue,
+              s"The mapped value for code '$originalCategValue' in the column key " +
+              s"'$categColName' in the map 'middleValuesOfRangesCategColumn4RawCol' " +
+              "must be a double.")
+
+      // the columns "rawColName" and "categColName" are linearly correlated in the "2014 Housing
+      // Survey", from The Center for Microeconomic Data of the Federal Reserve of New York, so we
+      // must leave only one of them in the Apache Spark RDD, otherwise in the K-Means Clustering
       // both columns will increase the weight of their distance by two, making them more important
       // than other columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
 
-      val idxHQH11b_1 = excelSpreadsh.findHeader("HQH11b_1")
-      if (idxHQH11b_1 >= 0) {
-        // the column "HQH11b_1" does exist in the Excel spreadsheet: see if it is empty, and if
-        // so, assign to it the middle value of the category "HQH11b2"
-        if (row(idxHQH11b_1) == "" || row(idxHQH11b_1) == "0") {
-          row(idxHQH11b_1) = middleValueHQH11b2
+      val idxRawCol = excelSpreadsh.findHeader(rawColName)
+      if (idxRawCol >= 0) {
+        // the raw column "rawColName" does exist in the Excel spreadsheet: see if it is empty,
+        // and if so, assign to it the middle value of the related column 'categColName'
+        if (row(idxRawCol) == "" || row(idxRawCol) == "0" || row(idxRawCol) == "0.0") {
+          row(idxRawCol) = middleValueCategCol
         }
-        // in any case, since this column "HQH11b_1" exists, then clear the correlated column
-        // "HQH11b2" which also exists. This way, we are clearing the correlation and making the
-        // K-Means clustering unbiased again.
-        row(idxHQH11b2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
-        // An alternative to setting the value to "0" of the entry HQH11b2 in the row vector, would
-        // be to delete this entry HQH11b2 in the vector (via a "row.remove(idxHQH11b2)" in Scala)
-        // but then the mapping between the header names array (the protected array
-        // "excelSpreadsh.header" used inside excelSpreadsh.findHeader(...)) and the vector data is
-        // shifted by one, because the column HQH11b2 was deleted in each (all) of the data
-        // vectors, but not in header names array. It is easier just to set the value of HQH11b2 to
-        // "0" in the data vector, just clearing the correlation with the other column HQH11b_1,
-        // than to wholy delete this entry HQH11b2 in the data vector.
+        // in any case, since the raw column "rawColName" exists, then clear the correlated column
+        // "categColName" which also exists. This way, we are clearing the correlation and making
+        // the K-Means clustering unbiased again.
+        row(idxCategCol) = excelSpreadsh.fillNANullValue.toString  // this value is "0" by default.
+        // An alternative to setting the value to "0" of the entry 'categColName' in the row
+        // vector, would be to delete this entry 'categColName' in the vector (via a
+        // "row.remove(idxCategCol)" in Scala), but then the mapping between the header names array
+        // (the protected array "excelSpreadsh.header" used inside excelSpreadsh.findHeader(...))
+        // and the vector data is shifted by one, because the column 'categColName' was deleted in
+        // each (all) of the data vectors, but not in header names array. It is easier just to set
+        // the value of 'categColName' to "0" in the data vector, just clearing the correlation
+        // with the other column 'rawColName', than to wholy delete this entry 'categColName' in
+        // the data vector.
       } else {
-        // the column "HQH11b_1" doesn't exist in all the Excel spreadsheet, only the column
-        // "HQH11b2": just flatten this nominal column "HQH11b2" into the middle value of the
-        // range, so the distance calculation has a little more of meaning
-        row(idxHQH11b2) = middleValueHQH11b2
+        // the column "rawColName" doesn't exist at all in the Excel spreadsheet, only the column
+        // "categColName": just flatten this nominal column "categColName" into the middle value of
+        // the range, so the distance calculation in the K-Means has a little more of meaning
+        row(idxCategCol) = middleValueCategCol
       }
     }
   }
 
-  private [this] def transformColHQH6a3(row: ArrayBuffer[String]): Unit = {
+  private[this] def transformColHQH6a3(row: ArrayBuffer[String]): Unit = {
 
     // column HQH6a3 is the sign of the magnitude given in HQH6a3part2_1
     val idxHQH6a3 = excelSpreadsh.findHeader("HQH6a3")
@@ -297,150 +368,8 @@ class NYFedBankSCERowTransform(val excelSpreadsh: Excel2RDD) extends ExcelRowTra
     }
   }
 
-  private [this] def transformColHQH5m3(row: ArrayBuffer[String]): Unit = {
 
-    val idxHQH5m3 = excelSpreadsh.findHeader("HQH5m3")
-    if (idxHQH5m3 >= 0) {
-      val realRangeMiddleMap = Map("0" -> "0", "1" -> "1.0", "2" -> "2.25", "3" -> "2.75",
-                                   "4" -> "3.25", "5" -> "3.75", "6" -> "4.25", "7" -> "4.75",
-                                   "8" -> "5.25", "9" -> "5.75", "10" -> "6.25", "11" -> "6.75",
-                                   "12" -> "7.25", "13" -> "7.75", "14" -> "8.25")
-
-      val middleValueHQH5m3 = realRangeMiddleMap(row(idxHQH5m3))
-
-      // the columns "HQH5m2_1" and "HQH5m3" are linearly correlated, so we must leave only one of
-      // them in the Apache Spark RDD, otherwise in the K-Means Clustering both columns will
-      // increase the weight of their distance by two, making them more important than other
-      // columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
-
-      val idxHQH5m2_1 = excelSpreadsh.findHeader("HQH5m2_1")
-      if (idxHQH5m2_1 >= 0) {
-        // the column "HQH5m2_1" does exist in the Excel spreadsheet: see if it is empty, and if
-        // so, assign to it the middle value of the category "HQH5m3"
-        if (row(idxHQH5m2_1) == "" || row(idxHQH5m2_1) == "0") {
-          row(idxHQH5m2_1) = middleValueHQH5m3
-        }
-        // in any case, since this column "HQH5m2_1" exists, then clear the correlated column
-        // "HQH5m3" which also exists. (See notes above for "HQH11b2" and "HQH11b_1", this
-        // case is similar, but the ranges not.)
-        row(idxHQH5m3) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
-      } else {
-        // the column "HQH5m2_1" doesn't exist in all the Excel spreadsheet, only the column
-        // "HQH5m3": just flatten this nominal column "HQH5m3" into the middle value of the
-        // range, so the distance calculation has a little more of meaning
-        row(idxHQH5m3) = middleValueHQH5m3
-      }
-    }
-  }
-
-  private [this] def transformColHQH5c2(row: ArrayBuffer[String]): Unit = {
-
-    val idxHQH5c2 = excelSpreadsh.findHeader("HQH5c2")
-    if (idxHQH5c2 >= 0) {
-      val realRangeMiddleMap = Map("0" -> 0, "1" -> 250, "2" -> 750, "3" -> 1250, "4" -> 1750,
-                                   "5" -> 2250, "6" -> 2750, "7" -> 3250, "8" -> 3750,
-                                   "9" -> 4250, "10" -> 4750, "11" -> 5250, "12" -> 5750,
-                                   "13" -> 6250)
-
-      val middleValueHQH5c2 = realRangeMiddleMap(row(idxHQH5c2)).toString
-
-      // the columns "HQH5b" and "HQH5c2" are linearly correlated, so we must leave only one of
-      // them in the Apache Spark RDD, otherwise in the K-Means Clustering both columns will
-      // increase the weight of their distance by two, making them more important than other
-      // columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
-
-      val idxHQH5b = excelSpreadsh.findHeader("HQH5b")
-      if (idxHQH5b >= 0) {
-        // the column "HQH5b" does exist in the Excel spreadsheet: see if it is empty, and if
-        // so, assign to it the middle value of the category "HQH5c2"
-        if (row(idxHQH5b) == "" || row(idxHQH5b) == "0") {
-          row(idxHQH5b) = middleValueHQH5c2
-        }
-        // in any case, since this column "HQH5b" exists, then clear the correlated column
-        // "HQH5c2" which also exists. (See notes above for "HQH11b2" and "HQH11b_1", this
-        // case is similar, but the ranges not.)
-        row(idxHQH5c2) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
-      } else {
-        // the column "HQH5b" doesn't exist in all the Excel spreadsheet, only the column
-        // "HQH5c2": just flatten this nominal column "HQH5c2" into the middle value of the
-        // range, so the distance calculation has a little more of meaning
-        row(idxHQH5c2) = middleValueHQH5c2
-      }
-    }
-  }
-
-  private [this] def transformColHQH2bnew(row: ArrayBuffer[String]): Unit = {
-
-    val idxHQH2bnew = excelSpreadsh.findHeader("HQH2bnew")
-    if (idxHQH2bnew >= 0) {
-      val realRangeMiddleMap = Map("0" -> 0, "1" -> 2500, "2" -> 7500, "3" -> 12500, "4" -> 17500,
-                                   "5" -> 25000, "6" -> 40000, "7" -> 65000, "8" -> 90000,
-                                   "9" -> 125000, "10" -> 175000, "11" -> 350000, "12" -> 625000,
-                                   "13" -> 875000)
-
-      val middleValueHQH2bnew = realRangeMiddleMap(row(idxHQH2bnew)).toString
-
-      // the columns "HQH2bnew" and "HQH2new_1" are linearly correlated, so we must leave only one
-      // of them in the Apache Spark RDD, otherwise in the K-Means Clustering both columns will
-      // increase the weight of their distance by two, making them more important than other
-      // columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
-
-      val idxHQH2new_1 = excelSpreadsh.findHeader("HQH2new_1")
-      if (idxHQH2new_1 >= 0) {
-        // the column "HQH2new_1" does exist in the Excel spreadsheet: see if it is empty, and if
-        // so, assign to it the middle value of the category "HQH2bnew"
-        if (row(idxHQH2new_1) == "" || row(idxHQH2new_1) == "0") {
-          row(idxHQH2new_1) = middleValueHQH2bnew
-        }
-        // in any case, since this column "HQH2new_1" exists, then clear the correlated column
-        // "HQH2bnew" which also exists. (See notes above for "HQH11b2" and "HQH11b_1", this
-        // case is similar, but the ranges not.)
-        row(idxHQH2bnew) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
-      } else {
-        // the column "HQH2new_1" doesn't exist in all the Excel spreadsheet, only the column
-        // "HQH2bnew": just flatten this nominal column "HQH2bnew" into the middle value of the
-        // range, so the distance calculation has a little more of meaning
-        row(idxHQH2bnew) = middleValueHQH2bnew
-      }
-    }
-  }
-
-  private [this] def transformColHQH2b(row: ArrayBuffer[String]): Unit = {
-
-    val idxHQH2b = excelSpreadsh.findHeader("HQH2b")
-    if (idxHQH2b >= 0) {
-      val realRangeMiddleMap = Map("0" -> 0, "1" -> 25000, "2" -> 75000, "3" -> 125000,
-                                   "4" -> 175000, "5" -> 250000, "6" -> 400000, "7" -> 650000,
-                                   "8" -> 900000, "9" -> 1150000)
-
-      val middleValueHQH2b = realRangeMiddleMap(row(idxHQH2b)).toString
-
-      // the columns "HQH2b" and "HQH2_1" are linearly correlated, so we must leave only one
-      // of them in the Apache Spark RDD, otherwise in the K-Means Clustering both columns will
-      // increase the weight of their distance by two, making them more important than other
-      // columns in the "2014 Housing Survey", so the ML clustering is not unbiased.
-
-      val idxHQH2_1 = excelSpreadsh.findHeader("HQH2_1")
-      if (idxHQH2_1 >= 0) {
-        // the column "HQH2_1" does exist in the Excel spreadsheet: see if it is empty, and if
-        // so, assign to it the middle value of the category "HQH2b"
-        if (row(idxHQH2_1) == "" || row(idxHQH2_1) == "0") {
-          row(idxHQH2_1) = middleValueHQH2b
-        }
-        // in any case, since this column "HQH2_1" exists, then clear the correlated column
-        // "HQH2b" which also exists. (See notes above for "HQH11b2" and "HQH11b_1", this
-        // case is similar, but the ranges not.)
-        row(idxHQH2b) = excelSpreadsh.fillNANullValue.toString   // this value is "0" by default.
-      } else {
-        // the column "HQH2_1" doesn't exist in all the Excel spreadsheet, only the column
-        // "HQH2b": just flatten this nominal column "HQH2b" into the middle value of the
-        // range, so the distance calculation has a little more of meaning
-        row(idxHQH2b) = middleValueHQH2b
-      }
-    }
-  }
-
-  private [this] def transformColHQ1_1(row: ArrayBuffer[String]): Unit = {
+  private[this] def transformColHQ1_1(row: ArrayBuffer[String]): Unit = {
 
     val idxHQ1_1 = excelSpreadsh.findHeader("HQ1_1")
     val idxHQ1hidden_1 = excelSpreadsh.findHeader("HQ1hidden_1")
