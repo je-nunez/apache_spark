@@ -31,11 +31,12 @@ testOptions in Test += Tests.Argument("-oD")
 
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
+lazy val apacheSparkVersion = "1.6.2"
 lazy val apachePOIVersion = "3.14"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.6.1" % "provided",
-  "org.apache.spark" %% "spark-mllib" % "1.6.1",
+  "org.apache.spark" %% "spark-core" % apacheSparkVersion % "provided",
+  "org.apache.spark" %% "spark-mllib" % apacheSparkVersion,
   "org.apache.commons" % "commons-lang3" % "3.0",
   "org.apache.poi" % "poi" % apachePOIVersion,
   "org.apache.poi" % "poi-ooxml" % apachePOIVersion,
