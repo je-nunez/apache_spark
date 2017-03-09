@@ -1,6 +1,6 @@
 # spark
 
-[![Build Status](https://travis-ci.org/je-nunez/spark.svg?branch=master)](https://travis-ci.org/je-nunez/spark)
+[![Build Status](https://travis-ci.org/je-nunez/apache_spark.svg?branch=master)](https://travis-ci.org/je-nunez/apache_spark)
 
 Some tests with clustering in Apache Spark in local mode
 
